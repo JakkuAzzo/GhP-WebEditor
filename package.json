@@ -17,7 +17,7 @@
     "electron"
   ],
   "author": "",
-  "license": "MIT",
+  "license": "Commercial",
   "dependencies": {
     "@fortawesome/fontawesome-free": "^7.1.0",
     "codemirror": "^5.65.16",
@@ -25,6 +25,7 @@
     "marked": "^17.0.0"
   },
   "devDependencies": {
-    "electron": "^39.2.1"
+    "electron": "^39.2.1",
+    "puppeteer": "^24.30.0"
   }
 }

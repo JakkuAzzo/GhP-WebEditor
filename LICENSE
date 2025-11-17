@@ -1,21 +1,44 @@
-MIT License
+GhP WebEditor Commercial License
+================================
 
-Copyright (c) 2024 GhP-WebEditor Contributors
+Copyright (c) 2024 GhP WebEditor. All rights reserved.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+This software is provided to you under a paid commercial license. By downloading,
+installing, or using GhP WebEditor (the "Software"), you agree to the following terms:
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+1. License Grant
+   ----------------
+   - A valid purchase grants you a non-transferable, non-exclusive license to install
+     and use the Software for yourself or within your organization.
+   - You may deploy the Software to as many environments as needed for the project(s)
+     covered by your purchase.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+2. Restrictions
+   --------------
+   - You may not redistribute, sublicense, rent, lease, or lend the Software.
+   - You may not reverse engineer or decompile the Software except as required by law.
+   - You may not publicly host the Software in a way that allows unlicensed third
+     parties to access its source code.
+
+3. Ownership
+   -----------
+   - The Software is licensed, not sold. All rights, title, and interest remain with
+     the copyright holder.
+
+4. Updates and Support
+   ---------------------
+   - Updates, fixes, or new features are provided according to the support plan
+     included with your purchase. Availability of updates is not guaranteed.
+
+5. Disclaimer of Warranty
+   ------------------------
+   - The Software is provided "as-is" without warranty of any kind. Use is at your
+     own risk.
+
+6. Limitation of Liability
+   -------------------------
+   - In no event shall the copyright holder be liable for any claim, damages, or other
+     liability arising from the use of the Software.
+
+For licensing inquiries, upgrades, or enterprise terms, please contact
+sales@ghp-webeditor.example.
