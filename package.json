@@ -1,0 +1,30 @@
+{
+  "name": "ghp-webeditor",
+  "version": "1.0.0",
+  "description": "A ui web editor for github pages",
+  "main": "main.js",
+  "scripts": {
+    "postinstall": "bash setup-libs.sh || node setup-libs.js",
+    "start": "node server.js",
+    "electron": "electron .",
+    "build": "echo 'Build completed'",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "github-pages",
+    "editor",
+    "web-editor",
+    "electron"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@fortawesome/fontawesome-free": "^7.1.0",
+    "codemirror": "^5.65.16",
+    "express": "^4.18.2",
+    "marked": "^17.0.0"
+  },
+  "devDependencies": {
+    "electron": "^39.2.1"
+  }
+}
