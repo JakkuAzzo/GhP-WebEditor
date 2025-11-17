@@ -1,16 +1,31 @@
 # GhP-WebEditor
-A comprehensive UI web editor for GitHub Pages that works in the browser and allows full customization, adding/deleting pages, and everything you need to manage your GitHub Pages projects.
 
-## Features
+A commercial-grade GitHub Pages web editor that blends advanced folder navigation,
+multi-file operations, real-time collaboration, Copilot-powered assistance, and a
+drag-and-drop GUI builder on top of a battle-tested code editor.
 
-- 🎨 **Rich Web Editor**: Full-featured code editor with syntax highlighting for HTML, CSS, JavaScript, Markdown, and more
-- 📁 **File Management**: Create, edit, delete files and folders with an intuitive file tree interface
-- 🔗 **GitHub Integration**: Connect to your GitHub account to clone, edit, and push changes to your repositories
-- 👁️ **Live Preview**: Preview HTML and Markdown files in real-time
-- 💾 **Auto-Save**: Automatic local storage of your work
-- 📥 **Download/Export**: Export your project as JSON for backup or transfer
-- 🖥️ **Multiple Deployment Options**: Run as a web app via npm or as a desktop Electron app
-- 📱 **Responsive Design**: Works on desktop and mobile devices
+## Feature Highlights
+
+- 🧭 **Advanced Folder Navigation** – Breadcrumbs, collapsible tree views, and
+directory insights for large repositories.
+- 🗂️ **Multi-file Selection & Bulk Actions** – Select many files at once and perform
+delete/download actions in a click.
+- 🕘 **Git Commit History Viewer** – Inspect the latest commits for the repository or
+for the active file without leaving the editor.
+- 🤝 **Collaborative Editing** – Start/share sessions, observe presence, and sync
+changes via BroadcastChannel/WebRTC fallbacks.
+- 🎨 **Custom Themes** – Independent UI and CodeMirror themes with persistent
+preferences.
+- 🔌 **Plugin System** – Register inline or remote plugins that hook into editor
+lifecycle events.
+- 🔍 **File + Content Search** – Filter the tree instantly or run deep content
+searches with contextual results.
+- 🤖 **Auto-completion & Copilot Chat** – Built-in CodeMirror hints plus a GitHub
+Copilot chat sidebar once authenticated.
+- 🧩 **Diff Viewer & History** – Inspect local vs. remote changes with a line-by-line
+diff and launch the commit history modal.
+- 🧱 **GUI + Code Modes** – Drag, drop, and edit sections visually, or jump back into
+CodeMirror with a single toggle.
 
 ## Installation
 
@@ -28,160 +43,106 @@ npm install
 npm start
 ```
 
-Then open your browser to `http://localhost:3000`
+Then open `http://localhost:3000`.
 
 ### Option 2: Run as Electron Desktop App
 
 ```bash
-# Install dependencies (if not already done)
 npm install
-
-# Start Electron app
 npm run electron
 ```
 
-## Usage
+## Usage Overview
 
-### Getting Started
+1. **Connect to GitHub:** Store a PAT for repo/content access or use the new Copilot
+login modal for AI assistance.
+2. **Navigate:** Use the left sidebar’s breadcrumbs, search, and folder inspector to
+move through large projects.
+3. **Open Files:** Multi-select items for bulk actions or open files individually in
+a tabbed editor.
+4. **Edit:** Toggle between Code and GUI modes, enable split preview, or invite
+collaborators.
+5. **Commit & Review:** Use the diff viewer and commit history modal before pushing.
+6. **Extend:** Load plugins via URL or inline code to automate tasks or add UI.
 
-1. **Create New Files**: Click the "+" icon in the sidebar to create new HTML, CSS, JavaScript, or Markdown files
-2. **Edit Files**: Click on any file in the file tree to open it in the editor
-3. **Save Changes**: Press `Ctrl+S` (or `Cmd+S` on Mac) or click the "Save" button
-4. **Preview**: Click the "Preview" button to see your HTML or Markdown rendered in real-time
+## Advanced Capabilities
 
-### GitHub Integration
+### Advanced Folder/Directory Navigation
+The sidebar (see `public/app.js`) builds a recursive tree with breadcrumbs and
+directory summaries so you can zoom into deep paths instantly.
 
-1. **Connect to GitHub**:
-   - Click the "Connect GitHub" button in the header
-   - Generate a Personal Access Token at [GitHub Settings](https://github.com/settings/tokens/new)
-   - Required scopes: `repo` (Full control of private repositories) and `read:user` (Read user profile data)
-   - Enter your token and click "Connect"
+### Multiple File Selection & Bulk Operations
+Checkboxes next to each entry let you delete or export entire sets of files.
+Selections stay in sync with bulk-action buttons in the sidebar toolbar.
 
-2. **Select Repository**:
-   - Once connected, your repositories will appear in the dropdown
-   - Select a repository to load its contents
+### Git Commit History Viewer
+The “Commits” button opens a modal that queries the GitHub API with filtering by
+active file when available.
 
-3. **Edit and Push**:
-   - Make changes to files
-   - Click "Save" to push changes back to GitHub
-   - Commit messages are automatically generated
+### Collaborative Editing Features
+Start or join a session from the secondary toolbar. The editor uses
+`BroadcastChannel` syncing, presence indicators, and shareable links.
 
-### File Operations
+### Custom Themes
+Two drop-downs in the header let you switch UI themes and CodeMirror themes
+independently. Preferences persist in `localStorage`.
 
-- **New File**: Click the file+ icon or use the welcome screen button
-- **New Folder**: Click the folder+ icon (folders are automatically created when saving files with paths)
-- **Delete File**: Open a file and click the "Delete" button
-- **Refresh**: Click the refresh icon to reload the file tree from GitHub
+### Plugin System
+Open the Plugin Manager modal to register inline code snippets or remote plugin
+objects. Plugins can respond to hooks like `onRegister`, `onFileOpen`, and
+`onFileSave`.
 
-### Keyboard Shortcuts
+### File Search Functionality
+Use the quick filter field for file-name searching or the global search modal for
+deeper content scans. Results link directly to the editor.
 
-- `Ctrl+S` / `Cmd+S`: Save current file
-- Tab key: Insert spaces (configurable)
-- Auto-close brackets and quotes
+### Auto-completion
+CodeMirror hint add-ons are enabled with `Ctrl+Space`/`Cmd+Space` shortcuts and also
+trigger automatically on typical code tokens.
+
+### Diff Viewer for Changes
+The diff modal applies a lightweight LCS algorithm to visualize additions/removals
+between the saved baseline and unsaved edits.
+
+### GUI + Code Editor Modes
+The toolbar toggle swaps between CodeMirror and a drag-and-drop GUI canvas where you
+can rearrange sections, edit inline text, and push the layout back into code.
+
+### GitHub + Copilot Login
+The Copilot panel can call GitHub’s Copilot proxy once you provide a token, so your
+AI pair programmer sits directly beside your workspace.
 
 ## Project Structure
 
 ```
 GhP-WebEditor/
 ├── public/
-│   ├── index.html      # Main HTML interface
-│   ├── styles.css      # Application styles
-│   └── app.js          # Application logic
-├── main.js             # Electron main process
-├── server.js           # Express web server
-├── package.json        # Node.js dependencies
-└── README.md           # This file
+│   ├── index.html         # Application UI shell
+│   ├── styles.css         # Theme-aware styling
+│   ├── app.js             # Front-end logic & integrations
+│   └── assets/screenshots # Marketing screenshots referenced in the README
+├── server.js              # Express server entrypoint
+├── main.js                # Electron bootstrap
+├── package.json           # Scripts & dependencies
+├── README.md              # This document
+└── LICENSE                # Commercial terms
 ```
 
 ## Technologies Used
 
-- **Frontend**: HTML5, CSS3, Vanilla JavaScript
-- **Editor**: CodeMirror - Advanced code editor library
-- **Markdown**: Marked.js - Markdown parser
-- **Backend**: Express.js - Web server
-- **Desktop**: Electron - Cross-platform desktop apps
-- **API**: GitHub REST API v3
-
-## GitHub API Permissions
-
-The editor requires the following GitHub permissions:
-- `repo`: To read and write repository contents
-- `read:user`: To read user profile information
-
-These are required to:
-- List your repositories
-- Read file contents
-- Create/update/delete files
-- Commit and push changes
-
-## Security Notes
-
-- GitHub Personal Access Tokens are stored in browser localStorage
-- Never share your token with others
-- Tokens are only sent to GitHub's API endpoints
-- Use tokens with minimal required permissions
-- Revoke tokens at https://github.com/settings/tokens if compromised
-
-## Browser Compatibility
-
-- Chrome/Edge: ✅ Fully supported
-- Firefox: ✅ Fully supported
-- Safari: ✅ Fully supported
-- Opera: ✅ Fully supported
-
-## Electron Compatibility
-
-- Windows: ✅ Supported
-- macOS: ✅ Supported
-- Linux: ✅ Supported
-
-## Development
-
-### Running in Development Mode
-
-```bash
-npm start
-```
-
-### Building for Production
-
-The application can be distributed as:
-1. **Web App**: Deploy the `public/` folder to any static hosting
-2. **Electron App**: Use `electron-builder` to create installers
-
-## Limitations
-
-- Folder navigation is simplified in the current version
-- Large files (>1MB) may impact performance
-- GitHub API rate limits apply (60 requests/hour unauthorized, 5000/hour authorized)
-
-## Future Enhancements
-
-- [ ] Advanced folder/directory navigation
-- [ ] Multiple file selection and bulk operations
-- [ ] Git commit history viewer
-- [ ] Collaborative editing features
-- [ ] Custom themes
-- [ ] Plugin system
-- [ ] File search functionality
-- [ ] Auto-completion
-- [ ] Diff viewer for changes
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
+- **Frontend:** HTML5, CSS3, Vanilla JS
+- **Editor:** CodeMirror 5 + add-ons
+- **Markdown:** Marked.js
+- **Backend:** Express.js
+- **Desktop:** Electron
+- **APIs:** GitHub REST API v3 + Copilot proxy
 
 ## License
 
-MIT License - feel free to use this project for personal or commercial purposes.
+This project is distributed under the **GhP WebEditor Commercial License**. A valid
+purchase is required for production use. See [LICENSE](LICENSE) for details.
 
 ## Support
 
-For issues, questions, or feature requests, please open an issue on GitHub.
-
-## Acknowledgments
-
-- CodeMirror for the excellent code editor
-- GitHub for the API
-- Font Awesome for icons
-- The open-source community 
+For licensing questions, feature requests, or enterprise support, please contact the
+project maintainer or email `sales@ghp-webeditor.example`.

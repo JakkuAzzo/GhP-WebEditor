@@ -7,17 +7,60 @@
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="/lib/codemirror/lib/codemirror.css">
     <link rel="stylesheet" href="/lib/codemirror/theme/monokai.css">
+    <link rel="stylesheet" href="/lib/codemirror/theme/dracula.css">
+    <link rel="stylesheet" href="/lib/codemirror/theme/material.css">
+    <link rel="stylesheet" href="/lib/codemirror/theme/eclipse.css">
+    <link rel="stylesheet" href="/lib/codemirror/theme/zenburn.css">
+    <link rel="stylesheet" href="/lib/codemirror/addon/hint/show-hint.css">
     <link rel="stylesheet" href="/lib/fontawesome/fontawesome-free/css/all.min.css">
 </head>
-<body>
+<body data-theme="dark">
     <div class="app-container">
-        <!-- Header -->
         <header class="header">
             <div class="header-left">
                 <i class="fab fa-github"></i>
-                <h1>GitHub Pages Web Editor</h1>
+                <div>
+                    <h1>GitHub Pages Web Editor</h1>
+                    <p class="tagline">Pro-grade visual + code workflow for GitHub Pages</p>
+                </div>
             </div>
             <div class="header-right">
+                <div class="theme-selectors">
+                    <label>
+                        UI Theme
+                        <select id="uiThemeSelect" class="select-input small">
+                            <option value="dark">Dark</option>
+                            <option value="light">Light</option>
+                            <option value="midnight">Midnight</option>
+                        </select>
+                    </label>
+                    <label>
+                        Code Theme
+                        <select id="codeThemeSelect" class="select-input small">
+                            <option value="monokai">Monokai</option>
+                            <option value="dracula">Dracula</option>
+                            <option value="material">Material</option>
+                            <option value="eclipse">Eclipse</option>
+                            <option value="zenburn">Zenburn</option>
+                        </select>
+                    </label>
+                </div>
+                <button id="commitHistoryBtn" class="btn btn-ghost">
+                    <i class="fas fa-history"></i>
+                    Commits
+                </button>
+                <button id="diffViewerBtn" class="btn btn-ghost">
+                    <i class="fas fa-not-equal"></i>
+                    Diff
+                </button>
+                <button id="pluginManagerBtn" class="btn btn-ghost">
+                    <i class="fas fa-plug"></i>
+                    Plugins
+                </button>
+                <button id="copilotLoginBtn" class="btn btn-secondary">
+                    <i class="fab fa-github"></i>
+                    GitHub Login
+                </button>
                 <button id="githubConnectBtn" class="btn btn-primary">
                     <i class="fab fa-github"></i> Connect GitHub
                 </button>
@@ -32,12 +75,36 @@
             </div>
         </header>
 
-        <!-- Main Content -->
+        <div class="secondary-toolbar">
+            <div class="breadcrumbs" id="breadcrumbs">
+                <span data-path="" class="breadcrumb active">root</span>
+            </div>
+            <div class="secondary-actions">
+                <div class="collab-info">
+                    <button id="startCollabBtn" class="btn btn-small btn-ghost">
+                        <i class="fas fa-users"></i>
+                        Collaborate
+                    </button>
+                    <span id="collabStatus">Solo mode</span>
+                </div>
+                <button id="contentSearchBtn" class="btn btn-small">
+                    <i class="fas fa-search"></i>
+                    Search Files
+                </button>
+                <button id="togglePreviewPane" class="btn btn-small">
+                    <i class="fas fa-columns"></i>
+                    Split Preview
+                </button>
+            </div>
+        </div>
+
         <div class="main-content">
-            <!-- Sidebar - File Tree -->
             <aside class="sidebar">
                 <div class="sidebar-header">
-                    <h2>Files</h2>
+                    <div>
+                        <h2>Workspace</h2>
+                        <p class="subtitle">Advanced navigator</p>
+                    </div>
                     <div class="sidebar-actions">
                         <button id="newFileBtn" class="icon-btn" title="New File">
                             <i class="fas fa-file-plus"></i>
@@ -55,45 +122,58 @@
                         <option value="">Select a repository...</option>
                     </select>
                 </div>
-                <div id="fileTree" class="file-tree">
+                <div class="sidebar-search">
+                    <input id="fileSearchInput" type="text" class="text-input" placeholder="Search or jump to file (⌘P)">
+                    <button id="clearSearchBtn" class="btn btn-small btn-ghost">Clear</button>
+                </div>
+                <div class="bulk-actions">
+                    <label class="checkbox">
+                        <input type="checkbox" id="selectAllFiles">
+                        Select all
+                    </label>
+                    <button id="bulkDownloadBtn" class="btn btn-small btn-secondary">Download</button>
+                    <button id="bulkDeleteBtn" class="btn btn-small btn-danger">Delete</button>
+                </div>
+                <div class="file-tree" id="fileTree">
                     <div class="empty-state">
                         <i class="fas fa-folder-open"></i>
                         <p>No files yet. Create a new file or connect to GitHub.</p>
                     </div>
                 </div>
+                <div class="folder-inspector">
+                    <h3>Directory Details</h3>
+                    <p id="folderSummary">No folder selected.</p>
+                </div>
             </aside>
 
-            <!-- Editor Area -->
             <main class="editor-area">
-                <div class="editor-tabs" id="editorTabs">
-                    <!-- Tabs will be added dynamically -->
-                </div>
+                <div class="editor-tabs" id="editorTabs"></div>
                 <div class="editor-container">
                     <div id="welcomeScreen" class="welcome-screen">
                         <div class="welcome-content">
                             <i class="fas fa-code"></i>
                             <h2>Welcome to GitHub Pages Web Editor</h2>
-                            <p>A powerful web-based editor for managing your GitHub Pages projects</p>
+                            <p>Design visually or dive into code. Work solo or co-edit with teammates.</p>
                             <div class="features">
                                 <div class="feature">
-                                    <i class="fas fa-edit"></i>
-                                    <h3>Edit Files</h3>
-                                    <p>Edit HTML, CSS, JavaScript, and Markdown files with syntax highlighting</p>
+                                    <i class="fas fa-route"></i>
+                                    <h3>Advanced Navigation</h3>
+                                    <p>Nested folders, breadcrumbs, search, and bulk operations.</p>
                                 </div>
                                 <div class="feature">
-                                    <i class="fas fa-folder"></i>
-                                    <h3>Manage Pages</h3>
-                                    <p>Create, delete, and organize your pages with ease</p>
+                                    <i class="fas fa-object-group"></i>
+                                    <h3>GUI + Code Modes</h3>
+                                    <p>Drag-and-drop layout builder backed by CodeMirror.</p>
                                 </div>
                                 <div class="feature">
-                                    <i class="fab fa-github"></i>
-                                    <h3>GitHub Integration</h3>
-                                    <p>Connect to your GitHub account and manage repositories directly</p>
+                                    <i class="fas fa-users"></i>
+                                    <h3>Collaboration</h3>
+                                    <p>Live presence indicator, session links, and Copilot chat.</p>
                                 </div>
                                 <div class="feature">
-                                    <i class="fas fa-download"></i>
-                                    <h3>Offline Support</h3>
-                                    <p>Download and run as a standalone app or Electron application</p>
+                                    <i class="fas fa-plug"></i>
+                                    <h3>Plugin Ecosystem</h3>
+                                    <p>Extend the editor with custom scripts and workflows.</p>
                                 </div>
                             </div>
                             <div class="actions">
@@ -106,11 +186,16 @@
                             </div>
                         </div>
                     </div>
-                    <div id="editorWrapper" style="display: none;">
+                    <div id="editorWrapper" class="editor-wrapper" style="display: none;">
                         <div class="editor-toolbar">
                             <div class="editor-info">
                                 <span id="currentFileName">Untitled</span>
                                 <span id="editorMode" class="mode-badge">HTML</span>
+                                <span id="fileStatus" class="status-badge">Saved</span>
+                            </div>
+                            <div class="mode-toggle">
+                                <button id="codeModeBtn" class="mode-btn active"><i class="fas fa-code"></i> Code</button>
+                                <button id="guiModeBtn" class="mode-btn"><i class="fas fa-object-group"></i> GUI</button>
                             </div>
                             <div class="editor-actions">
                                 <button id="saveFileBtn" class="btn btn-small btn-success">
@@ -119,22 +204,65 @@
                                 <button id="previewBtn" class="btn btn-small">
                                     <i class="fas fa-eye"></i> Preview
                                 </button>
+                                <button id="diffViewerBtnInline" class="btn btn-small btn-ghost">
+                                    <i class="fas fa-not-equal"></i> Diff
+                                </button>
                                 <button id="deleteFileBtn" class="btn btn-small btn-danger">
                                     <i class="fas fa-trash"></i> Delete
                                 </button>
                             </div>
                         </div>
-                        <textarea id="editor"></textarea>
-                        <div id="preview" class="preview-pane" style="display: none;">
-                            <iframe id="previewFrame"></iframe>
+                        <div class="editor-stack">
+                            <textarea id="editor"></textarea>
+                            <div id="guiEditor" class="gui-editor" style="display: none;">
+                                <div class="gui-sidebar">
+                                    <h3>Component Palette</h3>
+                                    <div class="palette">
+                                        <div class="palette-item" draggable="true" data-snippet="<section class='hero'><h1>Hero Title</h1><p>Describe your product.</p><button>Call to Action</button></section>">
+                                            Hero Section
+                                        </div>
+                                        <div class="palette-item" draggable="true" data-snippet="<section class='features'><div class='feature'><h3>Feature</h3><p>Explain it here.</p></div><div class='feature'><h3>Another Feature</h3><p>Explain this too.</p></div></section>">
+                                            Feature Grid
+                                        </div>
+                                        <div class="palette-item" draggable="true" data-snippet="<section class='cta'><h2>Ready?</h2><button>Get Started</button></section>">
+                                            CTA Block
+                                        </div>
+                                        <div class="palette-item" draggable="true" data-snippet="<section class='gallery'><figure><img src='https://placehold.co/600x400' alt='Placeholder'><figcaption>Caption</figcaption></figure></section>">
+                                            Media/Gallery
+                                        </div>
+                                    </div>
+                                    <div class="gui-controls">
+                                        <button id="resetGuiCanvas" class="btn btn-small btn-ghost">Reset Canvas</button>
+                                        <button id="applyGuiChanges" class="btn btn-small btn-success">Apply to Code</button>
+                                    </div>
+                                </div>
+                                <div class="gui-canvas-wrapper">
+                                    <div id="guiCanvas" class="gui-canvas" contenteditable="true"></div>
+                                    <p class="gui-hint">Drag components in, edit inline text, and rearrange with drag-and-drop.</p>
+                                </div>
+                            </div>
+                            <div id="preview" class="preview-pane" style="display: none;">
+                                <iframe id="previewFrame"></iframe>
+                            </div>
                         </div>
                     </div>
                 </div>
             </main>
+
+            <aside class="copilot-panel" id="copilotPanel">
+                <div class="copilot-header">
+                    <i class="fab fa-github"></i> Copilot Workspace
+                </div>
+                <div class="copilot-body" id="copilotMessages">
+                    <p class="copilot-empty">Authenticate to GitHub to unlock Copilot powered completions.</p>
+                </div>
+                <textarea id="copilotPrompt" class="text-input" placeholder="Ask Copilot to refactor, explain, or create content..."></textarea>
+                <button id="copilotSendBtn" class="btn btn-small btn-primary">Ask Copilot</button>
+            </aside>
         </div>
     </div>
 
-    <!-- Modals -->
+    <!-- GitHub Token Modal -->
     <div id="githubAuthModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -216,13 +344,117 @@
         </div>
     </div>
 
-    <!-- Scripts -->
+    <div id="pluginModal" class="modal">
+        <div class="modal-content large">
+            <div class="modal-header">
+                <h2>Plugin Manager</h2>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="plugin-controls">
+                    <input type="text" id="pluginUrl" class="text-input" placeholder="https://example.com/plugin.js">
+                    <button id="addPluginUrlBtn" class="btn btn-secondary">Load from URL</button>
+                </div>
+                <div class="plugin-controls">
+                    <textarea id="pluginCode" class="text-input" placeholder="Paste plugin factory code here"></textarea>
+                    <button id="addPluginInlineBtn" class="btn btn-primary">Register Plugin</button>
+                </div>
+                <div id="pluginList" class="plugin-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="commitModal" class="modal">
+        <div class="modal-content large">
+            <div class="modal-header">
+                <h2>Commit History</h2>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="commitList" class="commit-list">
+                    <p class="empty-state">Select a repository to view commits.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="diffModal" class="modal">
+        <div class="modal-content large">
+            <div class="modal-header">
+                <h2>Diff Viewer</h2>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="diffContainer" class="diff-container"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="searchModal" class="modal">
+        <div class="modal-content large">
+            <div class="modal-header">
+                <h2>Search Project Files</h2>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="contentSearchInput">Query</label>
+                    <input type="text" id="contentSearchInput" class="text-input" placeholder="Search term or selector">
+                </div>
+                <button id="runContentSearch" class="btn btn-primary">Search</button>
+                <div id="searchResults" class="search-results"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="collabModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Collaboration Session</h2>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Share this link with teammates to co-edit in real-time:</p>
+                <input type="text" id="collabLink" class="text-input" readonly>
+                <button id="copyCollabLink" class="btn btn-secondary">Copy Link</button>
+                <p class="hint">Sessions use BroadcastChannel/WebRTC fallback and sync changes for tabs on the same origin.</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="copilotModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>GitHub + Copilot Login</h2>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Paste your GitHub Copilot token or device-flow token. Your token stays on this device and is only used to talk to GitHub's Copilot proxy endpoints.</p>
+                <div class="form-group">
+                    <label for="copilotToken">Copilot Token</label>
+                    <input type="password" id="copilotToken" class="text-input" placeholder="github_pat_...">
+                </div>
+                <div class="form-group">
+                    <label for="copilotEndpoint">Custom Endpoint (optional)</label>
+                    <input type="text" id="copilotEndpoint" class="text-input" value="https://copilot-proxy.githubusercontent.com/v1/chat/completions">
+                </div>
+                <button id="copilotSaveBtn" class="btn btn-primary">Save & Enable Copilot</button>
+            </div>
+        </div>
+    </div>
+
     <script src="/lib/codemirror/lib/codemirror.js"></script>
     <script src="/lib/codemirror/mode/htmlmixed/htmlmixed.js"></script>
     <script src="/lib/codemirror/mode/css/css.js"></script>
     <script src="/lib/codemirror/mode/javascript/javascript.js"></script>
     <script src="/lib/codemirror/mode/markdown/markdown.js"></script>
     <script src="/lib/codemirror/mode/xml/xml.js"></script>
+    <script src="/lib/codemirror/addon/hint/show-hint.js"></script>
+    <script src="/lib/codemirror/addon/hint/html-hint.js"></script>
+    <script src="/lib/codemirror/addon/hint/css-hint.js"></script>
+    <script src="/lib/codemirror/addon/hint/javascript-hint.js"></script>
+    <script src="/lib/codemirror/addon/hint/anyword-hint.js"></script>
+    <script src="/lib/codemirror/addon/search/searchcursor.js"></script>
     <script src="/lib/marked/lib/marked.umd.js"></script>
     <script src="app.js"></script>
 </body>
