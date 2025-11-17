@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitHub Pages Web Editor</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="/lib/codemirror/lib/codemirror.css">
+    <link rel="stylesheet" href="/lib/codemirror/theme/monokai.css">
+    <link rel="stylesheet" href="/lib/fontawesome/fontawesome-free/css/all.min.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <i class="fab fa-github"></i>
+                <h1>GitHub Pages Web Editor</h1>
+            </div>
+            <div class="header-right">
+                <button id="githubConnectBtn" class="btn btn-primary">
+                    <i class="fab fa-github"></i> Connect GitHub
+                </button>
+                <button id="downloadBtn" class="btn btn-secondary">
+                    <i class="fas fa-download"></i> Download
+                </button>
+                <div id="userInfo" class="user-info" style="display: none;">
+                    <img id="userAvatar" src="" alt="User Avatar">
+                    <span id="userName"></span>
+                    <button id="logoutBtn" class="btn btn-small">Logout</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Sidebar - File Tree -->
+            <aside class="sidebar">
+                <div class="sidebar-header">
+                    <h2>Files</h2>
+                    <div class="sidebar-actions">
+                        <button id="newFileBtn" class="icon-btn" title="New File">
+                            <i class="fas fa-file-plus"></i>
+                        </button>
+                        <button id="newFolderBtn" class="icon-btn" title="New Folder">
+                            <i class="fas fa-folder-plus"></i>
+                        </button>
+                        <button id="refreshBtn" class="icon-btn" title="Refresh">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="repo-selector">
+                    <select id="repoSelect" class="select-input">
+                        <option value="">Select a repository...</option>
+                    </select>
+                </div>
+                <div id="fileTree" class="file-tree">
+                    <div class="empty-state">
+                        <i class="fas fa-folder-open"></i>
+                        <p>No files yet. Create a new file or connect to GitHub.</p>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Editor Area -->
+            <main class="editor-area">
+                <div class="editor-tabs" id="editorTabs">
+                    <!-- Tabs will be added dynamically -->
+                </div>
+                <div class="editor-container">
+                    <div id="welcomeScreen" class="welcome-screen">
+                        <div class="welcome-content">
+                            <i class="fas fa-code"></i>
+                            <h2>Welcome to GitHub Pages Web Editor</h2>
+                            <p>A powerful web-based editor for managing your GitHub Pages projects</p>
+                            <div class="features">
+                                <div class="feature">
+                                    <i class="fas fa-edit"></i>
+                                    <h3>Edit Files</h3>
+                                    <p>Edit HTML, CSS, JavaScript, and Markdown files with syntax highlighting</p>
+                                </div>
+                                <div class="feature">
+                                    <i class="fas fa-folder"></i>
+                                    <h3>Manage Pages</h3>
+                                    <p>Create, delete, and organize your pages with ease</p>
+                                </div>
+                                <div class="feature">
+                                    <i class="fab fa-github"></i>
+                                    <h3>GitHub Integration</h3>
+                                    <p>Connect to your GitHub account and manage repositories directly</p>
+                                </div>
+                                <div class="feature">
+                                    <i class="fas fa-download"></i>
+                                    <h3>Offline Support</h3>
+                                    <p>Download and run as a standalone app or Electron application</p>
+                                </div>
+                            </div>
+                            <div class="actions">
+                                <button id="createNewFile" class="btn btn-large btn-primary">
+                                    <i class="fas fa-plus"></i> Create New File
+                                </button>
+                                <button id="connectGithub" class="btn btn-large btn-secondary">
+                                    <i class="fab fa-github"></i> Connect to GitHub
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="editorWrapper" style="display: none;">
+                        <div class="editor-toolbar">
+                            <div class="editor-info">
+                                <span id="currentFileName">Untitled</span>
+                                <span id="editorMode" class="mode-badge">HTML</span>
+                            </div>
+                            <div class="editor-actions">
+                                <button id="saveFileBtn" class="btn btn-small btn-success">
+                                    <i class="fas fa-save"></i> Save
+                                </button>
+                                <button id="previewBtn" class="btn btn-small">
+                                    <i class="fas fa-eye"></i> Preview
+                                </button>
+                                <button id="deleteFileBtn" class="btn btn-small btn-danger">
+                                    <i class="fas fa-trash"></i> Delete
+                                </button>
+                            </div>
+                        </div>
+                        <textarea id="editor"></textarea>
+                        <div id="preview" class="preview-pane" style="display: none;">
+                            <iframe id="previewFrame"></iframe>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div id="githubAuthModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Connect to GitHub</h2>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>To connect to GitHub, you'll need a Personal Access Token with the following scopes:</p>
+                <ul>
+                    <li><code>repo</code> - Full control of private repositories</li>
+                    <li><code>read:user</code> - Read user profile data</li>
+                </ul>
+                <p>Create your token at: <a href="https://github.com/settings/tokens/new" target="_blank">GitHub Settings → Developer Settings → Personal Access Tokens</a></p>
+                <div class="form-group">
+                    <label for="githubToken">Personal Access Token:</label>
+                    <input type="password" id="githubToken" class="text-input" placeholder="ghp_xxxxxxxxxxxxx">
+                </div>
+                <button id="connectGithubSubmit" class="btn btn-primary">Connect</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="newFileModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Create New File</h2>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="newFileName">File Name:</label>
+                    <input type="text" id="newFileName" class="text-input" placeholder="index.html">
+                </div>
+                <div class="form-group">
+                    <label for="fileTemplate">Template:</label>
+                    <select id="fileTemplate" class="select-input">
+                        <option value="blank">Blank</option>
+                        <option value="html">HTML Page</option>
+                        <option value="css">CSS File</option>
+                        <option value="js">JavaScript File</option>
+                        <option value="md">Markdown File</option>
+                    </select>
+                </div>
+                <button id="createFileSubmit" class="btn btn-primary">Create</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="newFolderModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Create New Folder</h2>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="newFolderName">Folder Name:</label>
+                    <input type="text" id="newFolderName" class="text-input" placeholder="assets">
+                </div>
+                <button id="createFolderSubmit" class="btn btn-primary">Create</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="repoCloneModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Clone Repository</h2>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Select a repository to clone or enter a repository URL:</p>
+                <div class="form-group">
+                    <label for="repoUrl">Repository:</label>
+                    <input type="text" id="repoUrl" class="text-input" placeholder="username/repository">
+                </div>
+                <button id="cloneRepoSubmit" class="btn btn-primary">Clone</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/lib/codemirror/lib/codemirror.js"></script>
+    <script src="/lib/codemirror/mode/htmlmixed/htmlmixed.js"></script>
+    <script src="/lib/codemirror/mode/css/css.js"></script>
+    <script src="/lib/codemirror/mode/javascript/javascript.js"></script>
+    <script src="/lib/codemirror/mode/markdown/markdown.js"></script>
+    <script src="/lib/codemirror/mode/xml/xml.js"></script>
+    <script src="/lib/marked/lib/marked.umd.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
