@@ -155,6 +155,7 @@ body[data-theme="light"] .secondary-toolbar {
     grid-template-columns: 320px 1fr 280px;
     flex: 1;
     min-height: 0;
+    overflow: hidden;
 }
 
 .sidebar {
@@ -528,6 +529,7 @@ textarea.text-input {
     background: var(--bg-dark-elevated);
     padding: 12px;
     gap: 10px;
+    overflow: auto;
 }
 
 .copilot-header {
@@ -682,6 +684,17 @@ textarea.text-input {
 .folder-inspector {
     font-size: 13px;
     color: var(--secondary);
+}
+
+.workspace-badge {
+    padding: 10px 14px;
+    background: var(--primary-muted);
+    border: 1px solid var(--primary);
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--primary);
+    text-align: center;
 }
 
 @media (max-width: 1200px) {

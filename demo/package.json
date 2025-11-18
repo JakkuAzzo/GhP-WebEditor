@@ -1,0 +1,18 @@
+{
+  "name": "ghp-webeditor-demo",
+  "version": "1.0.0",
+  "description": "Automated demo and testing for GhP WebEditor",
+  "type": "module",
+  "scripts": {
+    "demo": "node sports-demo.js",
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "install-browsers": "playwright install chromium"
+  },
+  "keywords": ["demo", "playwright", "automation"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@playwright/test": "^1.40.0"
+  }
+}

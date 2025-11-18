@@ -1,0 +1,30 @@
+# Ignore dependencies
+node_modules/
+
+# Ignore Playwright artifacts
+test-results/
+playwright-report/
+playwright/.cache/
+
+# Ignore demo outputs
+screenshots/*.png
+output/*.json
+output/*.html
+output/*.css
+output/*.js
+
+# Keep directory structure
+!screenshots/.gitkeep
+!output/.gitkeep
+
+# Ignore OS files
+.DS_Store
+Thumbs.db
+
+# Ignore logs
+*.log
+npm-debug.log*
+
+# Ignore temp files
+*.tmp
+*.temp

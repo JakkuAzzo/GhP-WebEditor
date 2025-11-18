@@ -65,6 +65,29 @@ collaborators.
 5. **Commit & Review:** Use the diff viewer and commit history modal before pushing.
 6. **Extend:** Load plugins via URL or inline code to automate tasks or add UI.
 
+## New: Clone from Git URL
+
+You can clone any public Git repository by URL and browse files locally in the editor.
+
+How to use:
+
+1. Start the app: `npm start` (use `PORT=3001 npm start` if 3000 is busy)
+2. Click "Clone from URL" in the sidebar
+3. Paste a repo URL (e.g., `https://github.com/octocat/Hello-World.git`); keep "Shallow clone" enabled for speed
+4. After cloning, the file tree loads from the local clone; open files as usual
+
+Backend API (for integrations):
+
+- POST `/api/clone` with JSON `{ url, shallow?: boolean, branch?: string }` → `{ id, url, branch, status }`
+- GET `/api/clone/:id/tree` → `{ id, files: [{ path, type, size? }] }`
+- GET `/api/clone/:id/file?path=...` → `{ path, content, encoding, size }` or `{ tooLarge: true }`
+
+Notes:
+
+- Clones are stored under the OS temp directory and are not persisted across restarts.
+- Files larger than 2MB are flagged as `tooLarge` and not inlined.
+- Current scope is read/browse; commit/push from clones can be added next.
+
 ## Advanced Capabilities
 
 ### Advanced Folder/Directory Navigation

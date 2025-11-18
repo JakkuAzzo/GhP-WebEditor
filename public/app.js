@@ -16,6 +16,8 @@ const AppState = {
     selectedFiles: new Set(),
     searchQuery: '',
     plugins: [],
+    clones: {}, // id -> { id, url, branch }
+    currentCloneId: null,
     collaboration: {
         sessionId: null,
         channel: null,
@@ -236,6 +238,8 @@ function initializeCopilotPanel() {
 }
 
 function setupEventListeners() {
+    document.getElementById('openCloneModalBtn').addEventListener('click', () => showModal('repoCloneModal'));
+    document.getElementById('cloneRepoSubmit').addEventListener('click', cloneRepositoryFromUrl);
     document.getElementById('githubConnectBtn').addEventListener('click', showGitHubAuthModal);
     document.getElementById('connectGithub').addEventListener('click', showGitHubAuthModal);
     document.getElementById('connectGithubSubmit').addEventListener('click', connectToGitHub);
@@ -337,6 +341,121 @@ function setupEventListeners() {
             saveCurrentFile();
         }
     });
+}
+async function cloneRepositoryFromUrl() {
+    const url = document.getElementById('repoUrl').value.trim();
+    const shallow = document.getElementById('repoShallow').checked;
+    const status = document.getElementById('cloneStatus');
+    if (!url) {
+        alert('Enter a repository URL');
+        return;
+    }
+    status.textContent = 'Cloning...';
+    try {
+        const res = await fetch('/api/clone', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url, shallow })
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || 'Clone failed');
+        }
+        const data = await res.json();
+        AppState.clones[data.id] = data;
+        AppState.currentCloneId = data.id;
+        status.textContent = 'Cloned. Loading tree...';
+        await loadClonedTree(data.id);
+        document.getElementById('repoCloneModal').classList.remove('active');
+        document.getElementById('repoUrl').value = '';
+        status.textContent = '';
+        alert('Repository cloned locally. You can browse files now.');
+    } catch (error) {
+        console.error(error);
+        status.textContent = 'Clone failed: ' + (error.message || error);
+    }
+}
+
+async function loadClonedTree(id) {
+    const res = await fetch(`/api/clone/${id}/tree`);
+    if (!res.ok) throw new Error('Failed to fetch tree');
+    const data = await res.json();
+    // Map into AppState.files schema
+    const files = data.files.map(item => {
+        if (item.type === 'file') {
+            return {
+                name: item.path.split('/').pop(),
+                path: item.path,
+                type: 'file',
+                sha: null,
+                cloneId: id,
+                download_url: null // we will fetch via backend
+            };
+        }
+        return { name: item.path.split('/').pop(), path: item.path, type: 'dir', cloneId: id };
+    });
+    AppState.files = files;
+    AppState.currentRepo = null; // disconnect GitHub context for clarity
+    AppState.currentBranch = 'unknown';
+    refreshFileStructure();
+    renderFileTree();
+    updateWorkspaceBadge('Local Clone');
+}
+
+function updateWorkspaceBadge(label) {
+    const repoSelect = document.getElementById('repoSelect');
+    if (label) {
+        repoSelect.value = '';
+        repoSelect.style.display = 'none';
+        let badge = document.getElementById('workspaceBadge');
+        if (!badge) {
+            badge = document.createElement('div');
+            badge.id = 'workspaceBadge';
+            badge.className = 'workspace-badge';
+            repoSelect.parentNode.appendChild(badge);
+        }
+        badge.textContent = `📂 ${label}`;
+        badge.style.display = 'block';
+    } else {
+        const badge = document.getElementById('workspaceBadge');
+        if (badge) badge.style.display = 'none';
+        repoSelect.style.display = 'block';
+    }
+}
+
+async function fetchFileContent(file) {
+    if (AppState.fileCache[file.path]) {
+        return AppState.fileCache[file.path];
+    }
+    if (file.content) return file.content;
+    if (file.cloneId) {
+        try {
+            const params = new URLSearchParams({ path: file.path });
+            const res = await fetch(`/api/clone/${file.cloneId}/file?` + params.toString());
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                throw new Error(errData.error || 'Failed to load file');
+            }
+            const data = await res.json();
+            if (data.tooLarge) {
+                const msg = `File is too large to preview (${data.size} bytes).`;
+                AppState.fileCache[file.path] = msg;
+                return msg;
+            }
+            AppState.fileCache[file.path] = data.content || '';
+            return data.content || '';
+        } catch (error) {
+            console.error('fetchFileContent error for cloned file:', file.path, error);
+            return `// Error loading file: ${error.message}`;
+        }
+    }
+    if (file.download_url) {
+        const res = await fetch(file.download_url);
+        const text = await res.text();
+        AppState.fileCache[file.path] = text;
+        return text;
+    }
+    return '';
 }
 
 function showModal(id) {
@@ -757,20 +876,6 @@ async function openFile(file) {
     renderTabs();
     document.getElementById('guiCanvas').innerHTML = file.content || '';
     PluginManager.runHook('onFileOpen', { file });
-}
-
-async function fetchFileContent(file) {
-    if (AppState.fileCache[file.path]) {
-        return AppState.fileCache[file.path];
-    }
-    if (file.content) return file.content;
-    if (file.download_url) {
-        const res = await fetch(file.download_url);
-        const text = await res.text();
-        AppState.fileCache[file.path] = text;
-        return text;
-    }
-    return '';
 }
 
 function setEditorMode(extension) {
