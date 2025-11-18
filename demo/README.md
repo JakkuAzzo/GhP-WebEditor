@@ -46,7 +46,24 @@ npm run demo
 
 **Output:**
 - `screenshots/` - PNG files showing each step
+- `output/preview/` - Extracted HTML/CSS/JS files (ready to open!)
 - `output/` - Exported project files and metrics report
+
+### Viewing the Sports Website
+
+After running the demo, view the generated website:
+
+```bash
+npm run preview
+```
+
+Or manually open: `output/preview/index.html`
+
+To extract preview files from an export:
+
+```bash
+npm run extract
+```
 
 ### Running Tests
 

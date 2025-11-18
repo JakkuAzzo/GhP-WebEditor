@@ -606,12 +606,12 @@ async function runDemo() {
   const page = await context.newPage();
   
   try {
-    console.log('📱 Opening GhP WebEditor...');
+    console.log('📱 Opening GhP-WebEditor...');
     await page.goto('http://localhost:3000', { waitUntil: 'networkidle' });
     await page.waitForTimeout(2000);
     
-    // Wait for AppState to be initialized
-    await page.waitForFunction(() => typeof window.AppState !== 'undefined' && window.AppState.editor !== null);
+    // Wait for CodeMirror to be initialized
+    await page.waitForFunction(() => document.querySelector('.CodeMirror') !== null);
     console.log('⏳ Waiting for app to initialize...');
     await page.waitForTimeout(1000);
     
@@ -635,7 +635,8 @@ async function runDemo() {
     // Insert HTML content
     console.log('✏️  Writing HTML content...');
     await page.evaluate((html) => {
-      window.AppState.editor.setValue(html);
+      const cm = document.querySelector('.CodeMirror').CodeMirror;
+      cm.setValue(html);
     }, SPORTS_SITE.html);
     await page.waitForTimeout(1000);
     
@@ -660,7 +661,8 @@ async function runDemo() {
     // Insert CSS content
     console.log('🎨 Writing CSS styles...');
     await page.evaluate((css) => {
-      window.AppState.editor.setValue(css);
+      const cm = document.querySelector('.CodeMirror').CodeMirror;
+      cm.setValue(css);
     }, SPORTS_SITE.css);
     await page.waitForTimeout(1000);
     
@@ -684,7 +686,8 @@ async function runDemo() {
     // Insert JS content
     console.log('⚙️  Writing JavaScript...');
     await page.evaluate((js) => {
-      window.AppState.editor.setValue(js);
+      const cm = document.querySelector('.CodeMirror').CodeMirror;
+      cm.setValue(js);
     }, SPORTS_SITE.js);
     await page.waitForTimeout(1000);
     
@@ -802,5 +805,36 @@ if (!fs.existsSync(screenshotsDir)) {
   fs.mkdirSync(screenshotsDir, { recursive: true });
 }
 
+// Extract preview files from export
+function extractPreview() {
+  console.log('\n📦 Extracting preview files...');
+  
+  const exportPath = join(outputDir, 'sports-website-export.json');
+  const previewDir = join(outputDir, 'preview');
+  
+  if (!fs.existsSync(exportPath)) {
+    console.log('⚠️  Export file not found, skipping preview extraction');
+    return;
+  }
+  
+  const exportData = JSON.parse(fs.readFileSync(exportPath, 'utf8'));
+  
+  if (!fs.existsSync(previewDir)) {
+    fs.mkdirSync(previewDir, { recursive: true });
+  }
+  
+  exportData.files.forEach(file => {
+    const filePath = join(previewDir, file.name);
+    fs.writeFileSync(filePath, file.content, 'utf8');
+  });
+  
+  console.log('✅ Preview files extracted to:', previewDir);
+  console.log('🌐 Open in browser: file://' + join(previewDir, 'index.html'));
+}
+
 // Run the demo
-runDemo().catch(console.error);
+runDemo()
+  .then(() => {
+    extractPreview();
+  })
+  .catch(console.error);

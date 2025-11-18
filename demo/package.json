@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "demo": "node sports-demo.js",
+    "preview": "open output/preview/index.html",
+    "extract": "node extract-preview.js",
     "test": "playwright test",
     "test:headed": "playwright test --headed",
     "install-browsers": "playwright install chromium"
