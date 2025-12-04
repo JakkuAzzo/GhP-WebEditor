@@ -43,7 +43,9 @@ const CONFIG = {
   slowMo: hasFlag('headless') ? 0 : 500,
   appUrl: 'http://localhost:3000',
   screenshotsDir: path.join(__dirname, 'screenshots'),
-  outputDir: path.join(__dirname, 'output')
+  outputDir: path.join(__dirname, 'output'),
+  cloneTimeoutMs: parseInt(getArg('clone-timeout')) || 20000,  // Time to wait for clone
+  minMatchPercentage: parseInt(getArg('min-match')) || 80      // Minimum file match percentage
 };
 
 // Extract owner/repo from URL
@@ -55,57 +57,55 @@ function parseGitHubUrl(url) {
 
 // Fetch file list from GitHub API
 function fetchGitHubTree(owner, repo) {
-  return new Promise((resolve, reject) => {
-    const options = {
-      hostname: 'api.github.com',
-      path: `/repos/${owner}/${repo}/git/trees/main?recursive=1`,
-      method: 'GET',
-      headers: {
-        'User-Agent': 'GhP-WebEditor-Test',
-        'Accept': 'application/vnd.github.v3+json'
-      }
-    };
+  // Helper function to make the API request for a specific branch
+  const fetchBranch = (branch) => {
+    return new Promise((resolve, reject) => {
+      const options = {
+        hostname: 'api.github.com',
+        path: `/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`,
+        method: 'GET',
+        headers: {
+          'User-Agent': 'GhP-WebEditor-Test',
+          'Accept': 'application/vnd.github.v3+json'
+        }
+      };
 
-    const req = https.request(options, (res) => {
-      let data = '';
-      res.on('data', chunk => data += chunk);
-      res.on('end', () => {
-        if (res.statusCode === 404) {
-          // Try master branch
-          options.path = `/repos/${owner}/${repo}/git/trees/master?recursive=1`;
-          const masterReq = https.request(options, (masterRes) => {
-            let masterData = '';
-            masterRes.on('data', chunk => masterData += chunk);
-            masterRes.on('end', () => {
-              if (masterRes.statusCode !== 200) {
-                reject(new Error(`GitHub API error: ${masterRes.statusCode}`));
-                return;
-              }
-              try {
-                resolve(JSON.parse(masterData));
-              } catch (e) {
-                reject(e);
-              }
-            });
-          });
-          masterReq.on('error', reject);
-          masterReq.end();
-          return;
-        }
-        if (res.statusCode !== 200) {
-          reject(new Error(`GitHub API error: ${res.statusCode}`));
-          return;
-        }
-        try {
-          resolve(JSON.parse(data));
-        } catch (e) {
-          reject(e);
-        }
+      const req = https.request(options, (res) => {
+        let data = '';
+        res.on('data', chunk => data += chunk);
+        res.on('end', () => {
+          if (res.statusCode === 404) {
+            resolve({ notFound: true });
+            return;
+          }
+          if (res.statusCode !== 200) {
+            reject(new Error(`GitHub API error: ${res.statusCode}`));
+            return;
+          }
+          try {
+            resolve(JSON.parse(data));
+          } catch (e) {
+            reject(e);
+          }
+        });
       });
-    });
 
-    req.on('error', reject);
-    req.end();
+      req.on('error', reject);
+      req.end();
+    });
+  };
+
+  // Try main branch first, then fall back to master
+  return fetchBranch('main').then(result => {
+    if (result.notFound) {
+      return fetchBranch('master').then(masterResult => {
+        if (masterResult.notFound) {
+          throw new Error('Neither main nor master branch found');
+        }
+        return masterResult;
+      });
+    }
+    return result;
   });
 }
 
@@ -249,7 +249,7 @@ async function runEnhancedGUITest() {
     console.log('   ⏳ Cloning repository (this may take 15-30 seconds)...');
     
     // Wait for clone to complete
-    await page.waitForTimeout(20000);
+    await page.waitForTimeout(CONFIG.cloneTimeoutMs);
     
     // Check if files appeared
     const fileCount = await page.locator('.file-tree-item.file').count();
@@ -302,7 +302,7 @@ async function runEnhancedGUITest() {
     console.log(`   📊 Files only in GitHub: ${testReport.comparison.onlyInGitHub.length}`);
     
     testReport.tests.comparison = {
-      passed: githubTree.tree.length === 0 || parseFloat(testReport.comparison.matchPercentage) >= 80,
+      passed: githubTree.tree.length === 0 || parseFloat(testReport.comparison.matchPercentage) >= CONFIG.minMatchPercentage,
       details: testReport.comparison,
       note: githubTree.tree.length === 0 ? 'GitHub API unavailable (rate limited)' : null
     };
