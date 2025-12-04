@@ -6,7 +6,7 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const REPO_URL = 'https://github.com/JakkuAzzo/GuyRofe.git';
+const REPO_URL = process.env.REPO_URL || 'https://github.com/JakkuAzzo/GuyRofe.git';
 
 async function runGUITest() {
   console.log('🚀 Starting GhP WebEditor GUI Editing Test...\n');
