@@ -5,6 +5,8 @@ This folder contains automated testing and demonstration scripts for the GhP Web
 ## 📋 Contents
 
 - **sports-demo.js** - Comprehensive demo that builds a complete sports website with images
+- **gui-editing-test.js** - Basic GUI editing test
+- **gui-test-with-comparison.js** - Enhanced GUI test with GitHub API comparison
 - **tests.spec.js** - Full test suite covering all major features
 - **package.json** - Dependencies and npm scripts
 
@@ -22,6 +24,51 @@ cd demo
 npm install
 npm run install-browsers
 ```
+
+## 🧪 Enhanced GUI Test with Comparison
+
+The `gui-test-with-comparison.js` script provides comprehensive testing with GitHub API comparison:
+
+### Features
+- Clones a repository using the app
+- Compares the app's file list to the GitHub API file list
+- Generates a diff report
+- Tests GUI editing functionality (point, click, type)
+- Tests preview and DOM diff capabilities
+- Outputs detailed test report with screenshots
+
+### Running the Test
+
+```bash
+# Run with visible browser (default)
+npm run gui-test-compare
+
+# Run headless (for CI)
+npm run gui-test-compare:headless
+
+# Run with a different repository
+node gui-test-with-comparison.js --repo=https://github.com/owner/repo.git
+
+# Run headless with custom repo
+node gui-test-with-comparison.js --headless --repo=https://github.com/owner/repo.git
+```
+
+### Output Files
+- `screenshots/` - PNG files showing each test step
+- `output/gui-test-report.json` - Full test report with all results
+- `output/file-diff-report.json` - File comparison summary
+
+### Test Coverage
+1. **App Load** - Verifies application loads correctly
+2. **Repository Clone** - Tests cloning from URL
+3. **File Comparison** - Compares app files with GitHub API
+4. **Point-Click-Type Editing** - Tests editing HTML files
+5. **Save** - Verifies file saving
+6. **Preview with DOM Diff** - Tests preview and attribute verification
+7. **GUI Mode Toggle** - Tests visual editor mode
+8. **Drag and Drop** - Tests component dragging
+9. **Tab Management** - Tests multiple file tabs
+10. **File Search** - Tests search functionality
 
 ### Running the Demo
 

@@ -6,6 +6,8 @@
   "scripts": {
     "demo": "node sports-demo.js",
     "gui-test": "node gui-editing-test.js",
+    "gui-test-compare": "node gui-test-with-comparison.js",
+    "gui-test-compare:headless": "node gui-test-with-comparison.js --headless",
     "preview": "open output/preview/index.html",
     "extract": "node extract-preview.js",
     "test": "playwright test",
