@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GitHub Pages Web Editor</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22><text y=%2226%22 font-size=%2228%22>✦</text></svg>">
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="/lib/codemirror/lib/codemirror.css">
     <link rel="stylesheet" href="/lib/codemirror/theme/monokai.css">
@@ -21,7 +22,7 @@
                 <i class="fab fa-github"></i>
                 <div>
                     <h1>GitHub Pages Web Editor</h1>
-                    <p class="tagline">Pro-grade visual + code workflow for GitHub Pages</p>
+                    <p class="tagline">Pre-release visual + code workflow for GitHub Pages</p>
                 </div>
             </div>
             <div class="header-right">
@@ -49,17 +50,21 @@
                     <i class="fas fa-history"></i>
                     Commits
                 </button>
+                <button id="cloneChangesBtn" class="btn btn-ghost" style="display: none;">
+                    <i class="fas fa-code-branch"></i>
+                    Clone Changes
+                </button>
                 <button id="diffViewerBtn" class="btn btn-ghost">
                     <i class="fas fa-not-equal"></i>
                     Diff
                 </button>
-                <button id="pluginManagerBtn" class="btn btn-ghost">
+                <button id="pluginManagerBtn" class="btn btn-ghost" disabled title="Plugins require a future sandbox">
                     <i class="fas fa-plug"></i>
                     Plugins
                 </button>
                 <button id="copilotLoginBtn" class="btn btn-secondary">
                     <i class="fab fa-github"></i>
-                    GitHub Login
+                    Experimental Copilot
                 </button>
                 <button id="githubConnectBtn" class="btn btn-primary">
                     <i class="fab fa-github"></i> Connect GitHub
@@ -83,7 +88,7 @@
                 <div class="collab-info">
                     <button id="startCollabBtn" class="btn btn-small btn-ghost">
                         <i class="fas fa-users"></i>
-                        Collaborate
+                        Tab Sync
                     </button>
                     <span id="collabStatus">Solo mode</span>
                 </div>
@@ -124,6 +129,7 @@
                     <button id="openCloneModalBtn" class="btn btn-small btn-secondary" style="margin-top: 6px; width: 100%;">
                         <i class="fas fa-code-branch"></i> Clone from URL
                     </button>
+                    <div id="pagesStatus" class="pages-status" hidden></div>
                 </div>
                 <div class="sidebar-search">
                     <input id="fileSearchInput" type="text" class="text-input" placeholder="Search or jump to file (⌘P)">
@@ -156,7 +162,7 @@
                         <div class="welcome-content">
                             <i class="fas fa-code"></i>
                             <h2>Welcome to GitHub Pages Web Editor</h2>
-                            <p>Design visually or dive into code. Work solo or co-edit with teammates.</p>
+                            <p>Edit locally, work with GitHub repositories, or use a temporary clone workspace.</p>
                             <div class="features">
                                 <div class="feature">
                                     <i class="fas fa-route"></i>
@@ -170,13 +176,13 @@
                                 </div>
                                 <div class="feature">
                                     <i class="fas fa-users"></i>
-                                    <h3>Collaboration</h3>
-                                    <p>Live presence indicator, session links, and Copilot chat.</p>
+                                    <h3>Same-origin Tab Sync</h3>
+                                    <p>Broadcast changes between tabs in this browser origin.</p>
                                 </div>
                                 <div class="feature">
                                     <i class="fas fa-plug"></i>
-                                    <h3>Plugin Ecosystem</h3>
-                                    <p>Extend the editor with custom scripts and workflows.</p>
+                                    <h3>Security-first Preview</h3>
+                                    <p>Preview project content inside an isolated sandbox.</p>
                                 </div>
                             </div>
                             <div class="actions">
@@ -236,6 +242,9 @@
                                     </div>
                                     <div class="gui-controls">
                                         <button id="resetGuiCanvas" class="btn btn-small btn-ghost">Reset Canvas</button>
+                                        <button id="moveGuiUp" class="btn btn-small btn-ghost">Move Up</button>
+                                        <button id="moveGuiDown" class="btn btn-small btn-ghost">Move Down</button>
+                                        <button id="deleteGuiElement" class="btn btn-small btn-danger">Delete Selected</button>
                                         <button id="applyGuiChanges" class="btn btn-small btn-success">Apply to Code</button>
                                     </div>
                                 </div>
@@ -245,7 +254,7 @@
                                 </div>
                             </div>
                             <div id="preview" class="preview-pane" style="display: none;">
-                                <iframe id="previewFrame"></iframe>
+                                <iframe id="previewFrame" sandbox="allow-scripts" referrerpolicy="no-referrer" title="Project preview"></iframe>
                             </div>
                         </div>
                     </div>
@@ -273,17 +282,20 @@
                 <button class="close-modal">&times;</button>
             </div>
             <div class="modal-body">
-                <p>To connect to GitHub, you'll need a Personal Access Token with the following scopes:</p>
-                <ul>
-                    <li><code>repo</code> - Full control of private repositories</li>
-                    <li><code>read:user</code> - Read user profile data</li>
-                </ul>
-                <p>Create your token at: <a href="https://github.com/settings/tokens/new" target="_blank">GitHub Settings → Developer Settings → Personal Access Tokens</a></p>
-                <div class="form-group">
-                    <label for="githubToken">Personal Access Token:</label>
-                    <input type="password" id="githubToken" class="text-input" placeholder="ghp_xxxxxxxxxxxxx">
+                <div id="serverGithubDescription">
+                    <p>Sign in on GitHub, then choose exactly which repositories this editor may access.</p>
+                    <p>GitHub will show the app's requested permissions before you approve them. Credentials remain in an HTTP-only local session and are never exposed to the editor page.</p>
                 </div>
-                <button id="connectGithubSubmit" class="btn btn-primary">Connect</button>
+                <div id="staticGithubCredentials" hidden>
+                    <p>This GitHub Pages edition has no credential server. Create a fine-grained token with access only to the repositories you want to edit, <strong>Contents: read and write</strong>, and optionally <strong>Pages: read</strong>.</p>
+                    <p><a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener noreferrer">Create a fine-grained token on GitHub</a></p>
+                    <div class="form-group">
+                        <label for="staticGithubToken">Fine-grained personal access token</label>
+                        <input type="password" id="staticGithubToken" class="text-input" autocomplete="off" spellcheck="false" placeholder="github_pat_…">
+                    </div>
+                    <p class="hint">The token stays only in this tab's memory, is sent directly to api.github.com, and is cleared on logout or reload.</p>
+                </div>
+                <button id="connectGithubSubmit" type="button" class="btn btn-primary">Continue with GitHub</button>
             </div>
         </div>
     </div>
@@ -337,7 +349,7 @@
                 <button class="close-modal">&times;</button>
             </div>
             <div class="modal-body">
-                <p>Enter a repository URL to clone (https://, git+https://, or git@):</p>
+                <p>Enter an HTTPS repository URL hosted on GitHub, GitLab, or Bitbucket:</p>
                 <div class="form-group">
                     <label for="repoUrl">Repository URL:</label>
                     <input type="text" id="repoUrl" class="text-input" placeholder="https://github.com/user/repo.git">
@@ -359,12 +371,12 @@
             </div>
             <div class="modal-body">
                 <div class="plugin-controls">
-                    <input type="text" id="pluginUrl" class="text-input" placeholder="https://example.com/plugin.js">
-                    <button id="addPluginUrlBtn" class="btn btn-secondary">Load from URL</button>
+                    <input type="text" id="pluginUrl" class="text-input" placeholder="Plugins are disabled" disabled>
+                    <button id="addPluginUrlBtn" class="btn btn-secondary" disabled>Load from URL</button>
                 </div>
                 <div class="plugin-controls">
-                    <textarea id="pluginCode" class="text-input" placeholder="Paste plugin factory code here"></textarea>
-                    <button id="addPluginInlineBtn" class="btn btn-primary">Register Plugin</button>
+                    <textarea id="pluginCode" class="text-input" placeholder="Sandboxing is required before plugins can be enabled" disabled></textarea>
+                    <button id="addPluginInlineBtn" class="btn btn-primary" disabled>Register Plugin</button>
                 </div>
                 <div id="pluginList" class="plugin-list"></div>
             </div>
@@ -381,6 +393,32 @@
                 <div id="commitList" class="commit-list">
                     <p class="empty-state">Select a repository to view commits.</p>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="cloneChangesModal" class="modal">
+        <div class="modal-content large">
+            <div class="modal-header">
+                <h2>Clone Changes</h2>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="cloneStatusList" class="commit-list"><p class="empty-state">No status loaded.</p></div>
+                <div class="form-group">
+                    <label for="cloneCommitMessage">Commit message</label>
+                    <input id="cloneCommitMessage" class="text-input" maxlength="200" placeholder="Describe the change">
+                </div>
+                <div class="form-group">
+                    <label for="cloneAuthorName">Author name</label>
+                    <input id="cloneAuthorName" class="text-input" autocomplete="name">
+                </div>
+                <div class="form-group">
+                    <label for="cloneAuthorEmail">Author email</label>
+                    <input id="cloneAuthorEmail" type="email" class="text-input" autocomplete="email">
+                </div>
+                <button id="cloneCommitSubmit" class="btn btn-primary">Commit locally</button>
+                <p class="hint">Push is not available until a server-side credential flow is implemented.</p>
             </div>
         </div>
     </div>
@@ -443,7 +481,7 @@
                 </div>
                 <div class="form-group">
                     <label for="copilotEndpoint">Custom Endpoint (optional)</label>
-                    <input type="text" id="copilotEndpoint" class="text-input" value="https://copilot-proxy.githubusercontent.com/v1/chat/completions">
+                    <input type="text" id="copilotEndpoint" class="text-input" value="https://copilot-proxy.githubusercontent.com/v1/chat/completions" readonly>
                 </div>
                 <button id="copilotSaveBtn" class="btn btn-primary">Save & Enable Copilot</button>
             </div>
@@ -463,6 +501,8 @@
     <script src="/lib/codemirror/addon/hint/anyword-hint.js"></script>
     <script src="/lib/codemirror/addon/search/searchcursor.js"></script>
     <script src="/lib/marked/lib/marked.umd.js"></script>
+    <script src="/lib/fflate/umd/index.js"></script>
+    <script src="workspace-preview.js"></script>
     <script src="app.js"></script>
 </body>
 </html>

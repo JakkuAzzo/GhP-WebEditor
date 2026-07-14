@@ -1,7 +1,7 @@
 const AppState = {
-    githubToken: localStorage.getItem('githubToken') || null,
-    copilotToken: localStorage.getItem('copilotToken') || null,
-    copilotEndpoint: localStorage.getItem('copilotEndpoint') || 'https://copilot-proxy.githubusercontent.com/v1/chat/completions',
+    githubAuthenticated: false,
+    copilotToken: null,
+    copilotEndpoint: 'https://copilot-proxy.githubusercontent.com/v1/chat/completions',
     currentUser: null,
     currentRepo: null,
     currentBranch: 'main',
@@ -24,7 +24,9 @@ const AppState = {
         participants: new Map()
     },
     guiMode: 'code',
+    selectedGuiElement: null,
     fileCache: {},
+    assetCache: {},
     lastBroadcast: 0,
     uiTheme: localStorage.getItem('uiTheme') || 'dark',
     codeTheme: localStorage.getItem('codeTheme') || 'monokai',
@@ -39,7 +41,14 @@ const FILE_TEMPLATES = {
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Landing Page</title>
-    <link rel="stylesheet" href="styles.css" />
+    <style>
+        :root { color-scheme: light; font-family: Inter, system-ui, sans-serif; }
+        body { margin: 0; color: #161b22; background: #f6f8fa; }
+        .hero { padding: 5rem 2rem; text-align: center; color: white; background: linear-gradient(135deg, #0969da, #8250df); }
+        .hero button { padding: .8rem 1.4rem; border: 0; border-radius: 999px; font-weight: 700; }
+        .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: 1rem; max-width: 64rem; margin: 0 auto; padding: 2rem; }
+        .features article { padding: 1.25rem; border: 1px solid #d0d7de; border-radius: .75rem; background: white; }
+    </style>
 </head>
 <body>
     <header class="hero">
@@ -92,6 +101,44 @@ Start documenting your GitHub Pages project.
 `
 };
 
+function sanitizeEditorHtml(html) {
+    return GhpWorkspacePreview.sanitizeBodyHtml(html);
+}
+
+function appendTextMessage(container, text, className = '') {
+    const message = document.createElement('div');
+    message.className = className;
+    message.textContent = text;
+    container.appendChild(message);
+    return message;
+}
+
+function encodeGitHubPath(filePath) {
+    return filePath.split('/').map(segment => encodeURIComponent(segment)).join('/');
+}
+
+function decodeGitHubContent(content) {
+    const bytes = Uint8Array.from(atob(content.replace(/\s/g, '')), character => character.charCodeAt(0));
+    return new TextDecoder().decode(bytes);
+}
+
+function assetMimeType(filePath) {
+    const extension = filePath.split('.').pop().toLowerCase();
+    return {
+        apng: 'image/apng', avif: 'image/avif', gif: 'image/gif', ico: 'image/x-icon',
+        jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', svg: 'image/svg+xml', webp: 'image/webp',
+        woff: 'font/woff', woff2: 'font/woff2', ttf: 'font/ttf', otf: 'font/otf',
+        mp3: 'audio/mpeg', wav: 'audio/wav', mp4: 'video/mp4', webm: 'video/webm'
+    }[extension] || 'application/octet-stream';
+}
+
+function utf8ToBase64(content) {
+    const bytes = new TextEncoder().encode(content);
+    let binary = '';
+    bytes.forEach(byte => { binary += String.fromCharCode(byte); });
+    return btoa(binary);
+}
+
 const PluginManager = {
     register(plugin, sourceCode = '') {
         if (!plugin || !plugin.id) {
@@ -127,14 +174,11 @@ document.addEventListener('DOMContentLoaded', () => {
     initializeCopilotPanel();
     setupEventListeners();
     loadStateFromLocalStorage();
-    loadPluginsFromStorage();
     refreshFileStructure();
     renderFileTree();
     updateBreadcrumbs(AppState.focusedDirectory);
 
-    if (AppState.githubToken) {
-        authenticateWithGitHub();
-    }
+    authenticateWithGitHub();
 
     const urlSession = new URLSearchParams(window.location.search).get('session');
     if (urlSession) {
@@ -201,21 +245,97 @@ function initializeGuiEditor() {
     guiCanvas.addEventListener('dragover', e => e.preventDefault());
     guiCanvas.addEventListener('drop', e => {
         e.preventDefault();
+        if (AppState.draggedGuiElement) {
+            const target = topLevelGuiElement(e.target, guiCanvas);
+            if (target && target !== AppState.draggedGuiElement) {
+                target.parentNode.insertBefore(AppState.draggedGuiElement, target);
+            } else if (!target) {
+                guiCanvas.appendChild(AppState.draggedGuiElement);
+            }
+            AppState.draggedGuiElement = null;
+            prepareGuiCanvas();
+            return;
+        }
         const snippet = e.dataTransfer.getData('text/plain');
-        guiCanvas.insertAdjacentHTML('beforeend', snippet);
+        if (snippet) {
+            guiCanvas.insertAdjacentHTML('beforeend', snippet);
+            prepareGuiCanvas();
+        }
     });
+
+    guiCanvas.addEventListener('click', event => {
+        const element = event.target instanceof Element && event.target !== guiCanvas ? event.target : null;
+        if (element) selectGuiElement(element);
+    });
+    guiCanvas.addEventListener('dragstart', event => {
+        const element = topLevelGuiElement(event.target, guiCanvas);
+        if (!element) return;
+        AppState.draggedGuiElement = element;
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('application/x-ghp-gui-block', 'move');
+    });
+    guiCanvas.addEventListener('dragend', () => { AppState.draggedGuiElement = null; });
+
+    document.getElementById('moveGuiUp').addEventListener('click', () => moveSelectedGuiElement(-1));
+    document.getElementById('moveGuiDown').addEventListener('click', () => moveSelectedGuiElement(1));
+    document.getElementById('deleteGuiElement').addEventListener('click', deleteSelectedGuiElement);
 
     document.getElementById('applyGuiChanges').addEventListener('click', () => {
         if (!AppState.currentFile) return;
-        const html = guiCanvas.innerHTML;
+        const html = GhpWorkspacePreview.applyVisualBody(AppState.editor.getValue(), cleanGuiCanvasHtml());
         AppState.editor.setValue(html);
         switchEditorMode('code');
     });
 
     document.getElementById('resetGuiCanvas').addEventListener('click', () => {
         if (!AppState.currentFile) return;
-        guiCanvas.innerHTML = AppState.editor.getValue();
+        guiCanvas.innerHTML = GhpWorkspacePreview.visualBody(AppState.editor.getValue());
+        prepareGuiCanvas();
     });
+}
+
+function topLevelGuiElement(target, canvas) {
+    if (!(target instanceof Element) || target === canvas || !canvas.contains(target)) return null;
+    let element = target;
+    while (element.parentElement && element.parentElement !== canvas) element = element.parentElement;
+    return element.parentElement === canvas ? element : null;
+}
+
+function selectGuiElement(element) {
+    if (AppState.selectedGuiElement) AppState.selectedGuiElement.classList.remove('gui-selected');
+    AppState.selectedGuiElement = element;
+    element?.classList.add('gui-selected');
+}
+
+function prepareGuiCanvas() {
+    const canvas = document.getElementById('guiCanvas');
+    selectGuiElement(null);
+    [...canvas.children].forEach(element => element.setAttribute('draggable', 'true'));
+}
+
+function moveSelectedGuiElement(direction) {
+    const element = AppState.selectedGuiElement;
+    if (!element) return;
+    if (direction < 0 && element.previousElementSibling) {
+        element.parentNode.insertBefore(element, element.previousElementSibling);
+    } else if (direction > 0 && element.nextElementSibling) {
+        element.parentNode.insertBefore(element.nextElementSibling, element);
+    }
+}
+
+function deleteSelectedGuiElement() {
+    const element = AppState.selectedGuiElement;
+    if (!element) return;
+    element.remove();
+    AppState.selectedGuiElement = null;
+}
+
+function cleanGuiCanvasHtml() {
+    const clone = document.getElementById('guiCanvas').cloneNode(true);
+    clone.querySelectorAll('.gui-selected').forEach(element => element.classList.remove('gui-selected'));
+    clone.querySelectorAll('[draggable]').forEach(element => element.removeAttribute('draggable'));
+    clone.querySelectorAll('[contenteditable]').forEach(element => element.removeAttribute('contenteditable'));
+    return clone.innerHTML;
 }
 
 function initializeThemes() {
@@ -240,6 +360,8 @@ function initializeCopilotPanel() {
 function setupEventListeners() {
     document.getElementById('openCloneModalBtn').addEventListener('click', () => showModal('repoCloneModal'));
     document.getElementById('cloneRepoSubmit').addEventListener('click', cloneRepositoryFromUrl);
+    document.getElementById('cloneChangesBtn').addEventListener('click', openCloneChanges);
+    document.getElementById('cloneCommitSubmit').addEventListener('click', commitCloneChanges);
     document.getElementById('githubConnectBtn').addEventListener('click', showGitHubAuthModal);
     document.getElementById('connectGithub').addEventListener('click', showGitHubAuthModal);
     document.getElementById('connectGithubSubmit').addEventListener('click', connectToGitHub);
@@ -259,6 +381,11 @@ function setupEventListeners() {
     document.getElementById('downloadBtn').addEventListener('click', downloadProject);
 
     document.getElementById('repoSelect').addEventListener('change', e => {
+        if (e.target.value === '__install__') {
+            if (window.GhpStaticApi) window.GhpStaticApi.openTokenSettings();
+            else window.location.assign('/api/auth/github/install');
+            return;
+        }
         if (e.target.value) {
             loadRepository(e.target.value);
         }
@@ -395,6 +522,8 @@ async function loadClonedTree(id) {
         return { name: item.path.split('/').pop(), path: item.path, type: 'dir', cloneId: id };
     });
     AppState.files = files;
+    AppState.fileCache = {};
+    AppState.assetCache = {};
     AppState.currentRepo = null; // disconnect GitHub context for clarity
     AppState.currentBranch = 'unknown';
     refreshFileStructure();
@@ -405,6 +534,7 @@ async function loadClonedTree(id) {
 function updateWorkspaceBadge(label) {
     const repoSelect = document.getElementById('repoSelect');
     if (label) {
+        document.getElementById('pagesStatus').hidden = true;
         repoSelect.value = '';
         repoSelect.style.display = 'none';
         let badge = document.getElementById('workspaceBadge');
@@ -416,15 +546,17 @@ function updateWorkspaceBadge(label) {
         }
         badge.textContent = `📂 ${label}`;
         badge.style.display = 'block';
+        document.getElementById('cloneChangesBtn').style.display = 'inline-flex';
     } else {
         const badge = document.getElementById('workspaceBadge');
         if (badge) badge.style.display = 'none';
         repoSelect.style.display = 'block';
+        document.getElementById('cloneChangesBtn').style.display = 'none';
     }
 }
 
 async function fetchFileContent(file) {
-    if (AppState.fileCache[file.path]) {
+    if (Object.prototype.hasOwnProperty.call(AppState.fileCache, file.path)) {
         return AppState.fileCache[file.path];
     }
     if (file.content) return file.content;
@@ -449,13 +581,58 @@ async function fetchFileContent(file) {
             return `// Error loading file: ${error.message}`;
         }
     }
-    if (file.download_url) {
-        const res = await fetch(file.download_url);
-        const text = await res.text();
+    if (file.githubPath && AppState.currentRepo && AppState.githubAuthenticated) {
+        const path = encodeGitHubPath(file.githubPath);
+        const params = new URLSearchParams({ ref: AppState.currentBranch });
+        const res = await fetch(`/api/github/repos/${AppState.currentRepo}/contents/${path}?${params}`);
+        if (!res.ok) throw new Error(`GitHub file request failed (${res.status})`);
+        const data = await res.json();
+        if (data.encoding !== 'base64' || typeof data.content !== 'string') {
+            throw new Error('GitHub file is not available as editable text');
+        }
+        const text = decodeGitHubContent(data.content);
         AppState.fileCache[file.path] = text;
         return text;
     }
     return '';
+}
+
+async function fetchFileAsset(file) {
+    const workspace = file.cloneId || AppState.currentRepo || 'local';
+    const cacheKey = `${workspace}:${file.path}`;
+    if (AppState.assetCache[cacheKey]) return AppState.assetCache[cacheKey];
+    const base64 = await fetchFileBase64(file);
+    if (!base64) return null;
+    const dataUrl = `data:${assetMimeType(file.path)};base64,${base64}`;
+    AppState.assetCache[cacheKey] = dataUrl;
+    return dataUrl;
+}
+
+async function fetchFileBase64(file) {
+    if (typeof file.content === 'string') return utf8ToBase64(file.content);
+    if (file.cloneId) {
+        const params = new URLSearchParams({ path: file.path, encoding: 'base64' });
+        const response = await fetch(`/api/clone/${file.cloneId}/file?${params}`);
+        if (!response.ok) return null;
+        const data = await response.json();
+        if (data.tooLarge || data.encoding !== 'base64') return null;
+        return data.content;
+    }
+    if (file.githubPath && AppState.currentRepo && AppState.githubAuthenticated) {
+        const path = encodeGitHubPath(file.githubPath);
+        const params = new URLSearchParams({ ref: AppState.currentBranch });
+        const response = await fetch(`/api/github/repos/${AppState.currentRepo}/contents/${path}?${params}`);
+        if (!response.ok) return null;
+        const data = await response.json();
+        if (data.encoding !== 'base64' || typeof data.content !== 'string') return null;
+        return data.content.replace(/\s/g, '');
+    }
+    return null;
+}
+
+function base64ToBytes(content) {
+    const binary = atob(content);
+    return Uint8Array.from(binary, character => character.charCodeAt(0));
 }
 
 function showModal(id) {
@@ -467,33 +644,47 @@ function showGitHubAuthModal() {
 }
 
 async function connectToGitHub() {
-    const token = document.getElementById('githubToken').value.trim();
-    if (!token) {
-        alert('Please enter a valid GitHub token');
+    if (window.GhpStaticApi) {
+        const button = document.getElementById('connectGithubSubmit');
+        const input = document.getElementById('staticGithubToken');
+        button.disabled = true;
+        button.textContent = 'Connecting…';
+        try {
+            await window.GhpStaticApi.connect(input.value);
+            input.value = '';
+            document.getElementById('githubAuthModal').classList.remove('active');
+            await authenticateWithGitHub();
+        } catch (error) {
+            alert(`GitHub connection failed: ${error.message}`);
+        } finally {
+            button.disabled = false;
+            button.textContent = 'Connect GitHub';
+        }
         return;
     }
-    AppState.githubToken = token;
-    localStorage.setItem('githubToken', token);
     document.getElementById('githubAuthModal').classList.remove('active');
-    await authenticateWithGitHub();
+    window.location.assign('/api/auth/github/start');
 }
 
 async function authenticateWithGitHub() {
     try {
-        const response = await fetch('https://api.github.com/user', {
-            headers: {
-                Authorization: `token ${AppState.githubToken}`,
-                Accept: 'application/vnd.github.v3+json'
-            }
-        });
-        if (!response.ok) throw new Error('Authentication failed');
-        AppState.currentUser = await response.json();
+        const response = await fetch('/api/auth/github/status');
+        if (!response.ok) throw new Error('Authentication status failed');
+        const status = await response.json();
+        if (!status.configured) {
+            const connect = document.getElementById('githubConnectBtn');
+            connect.disabled = true;
+            connect.title = 'Configure GITHUB_APP_CLIENT_ID, GITHUB_APP_CLIENT_SECRET, and GITHUB_APP_SLUG';
+            return;
+        }
+        if (!status.authenticated) return;
+        AppState.githubAuthenticated = true;
+        AppState.currentUser = status.user;
         updateUserInfo();
         await loadRepositories();
     } catch (error) {
         console.error('GitHub authentication error:', error);
-        alert('Failed to authenticate with GitHub. Please check your token.');
-        logout();
+        alert('Failed to restore the GitHub login. Please sign in again.');
     }
 }
 
@@ -504,11 +695,11 @@ function updateUserInfo() {
     document.getElementById('userName').textContent = AppState.currentUser.login;
 }
 
-function logout() {
-    AppState.githubToken = null;
+async function logout() {
+    await fetch('/api/auth/github/logout', { method: 'POST' }).catch(() => {});
+    AppState.githubAuthenticated = false;
     AppState.currentUser = null;
     AppState.repositories = [];
-    localStorage.removeItem('githubToken');
     document.getElementById('githubConnectBtn').style.display = 'flex';
     document.getElementById('userInfo').style.display = 'none';
     document.getElementById('repoSelect').innerHTML = '<option value="">Select a repository...</option>';
@@ -516,13 +707,10 @@ function logout() {
 
 async function loadRepositories() {
     try {
-        const response = await fetch('https://api.github.com/user/repos?per_page=100&sort=updated', {
-            headers: {
-                Authorization: `token ${AppState.githubToken}`,
-                Accept: 'application/vnd.github.v3+json'
-            }
-        });
+        const response = await fetch('/api/github/repositories');
+        if (!response.ok) throw new Error(`GitHub repositories request failed (${response.status})`);
         AppState.repositories = await response.json();
+        if (!Array.isArray(AppState.repositories)) throw new Error('GitHub returned an invalid repository list');
         const repoSelect = document.getElementById('repoSelect');
         repoSelect.innerHTML = '<option value="">Select a repository...</option>';
         AppState.repositories.forEach(repo => {
@@ -531,6 +719,10 @@ async function loadRepositories() {
             option.textContent = repo.full_name;
             repoSelect.appendChild(option);
         });
+        const accessOption = document.createElement('option');
+        accessOption.value = '__install__';
+        accessOption.textContent = AppState.repositories.length ? 'Manage repository access…' : 'Choose repositories on GitHub…';
+        repoSelect.appendChild(accessOption);
     } catch (error) {
         console.error('Failed to load repositories:', error);
     }
@@ -538,23 +730,18 @@ async function loadRepositories() {
 
 async function loadRepository(repoFullName) {
     AppState.currentRepo = repoFullName;
+    AppState.currentCloneId = null;
+    updateWorkspaceBadge(null);
     try {
-        const repoInfoRes = await fetch(`https://api.github.com/repos/${repoFullName}`, {
-            headers: {
-                Authorization: `token ${AppState.githubToken}`,
-                Accept: 'application/vnd.github.v3+json'
-            }
-        });
+        const repoInfoRes = await fetch(`/api/github/repos/${repoFullName}`);
+        if (!repoInfoRes.ok) throw new Error(`Repository request failed (${repoInfoRes.status})`);
         const repoInfo = await repoInfoRes.json();
         AppState.currentBranch = repoInfo.default_branch || 'main';
 
-        const treeRes = await fetch(`https://api.github.com/repos/${repoFullName}/git/trees/${AppState.currentBranch}?recursive=1`, {
-            headers: {
-                Authorization: `token ${AppState.githubToken}`,
-                Accept: 'application/vnd.github.v3+json'
-            }
-        });
+        const treeRes = await fetch(`/api/github/repos/${repoFullName}/tree?branch=${encodeURIComponent(AppState.currentBranch)}`);
+        if (!treeRes.ok) throw new Error(`Repository tree request failed (${treeRes.status})`);
         const treeData = await treeRes.json();
+        if (treeData.truncated) throw new Error('Repository tree is too large for the editor to load safely');
         const treeEntries = treeData.tree || [];
         const files = [];
 
@@ -565,7 +752,7 @@ async function loadRepository(repoFullName) {
                     path: item.path,
                     type: 'file',
                     sha: item.sha,
-                    download_url: `https://raw.githubusercontent.com/${repoFullName}/${AppState.currentBranch}/${item.path}`
+                    githubPath: item.path
                 });
             } else if (item.type === 'tree') {
                 files.push({
@@ -578,12 +765,60 @@ async function loadRepository(repoFullName) {
         });
 
         AppState.files = files;
+        AppState.fileCache = {};
+        AppState.assetCache = {};
         refreshFileStructure();
         renderFileTree();
         saveStateToLocalStorage();
+        loadPagesStatus(repoFullName);
     } catch (error) {
         console.error('Failed to load repository contents:', error);
         alert('Failed to load repository contents');
+    }
+}
+
+async function loadPagesStatus(repoFullName = AppState.currentRepo) {
+    const panel = document.getElementById('pagesStatus');
+    if (!repoFullName || !AppState.githubAuthenticated) {
+        panel.hidden = true;
+        return;
+    }
+    panel.hidden = false;
+    panel.textContent = `Editing ${repoFullName} on ${AppState.currentBranch}. Checking GitHub Pages…`;
+    try {
+        const response = await fetch(`/api/github/repos/${repoFullName}/pages/status`);
+        if (response.status === 403) {
+            const credential = window.GhpStaticApi ? 'fine-grained token' : 'GitHub App';
+            panel.textContent = `Editing ${repoFullName} on ${AppState.currentBranch}. Grant the ${credential} Pages: read permission to verify deployment.`;
+            return;
+        }
+        if (!response.ok) throw new Error(`Pages status failed (${response.status})`);
+        const status = await response.json();
+        panel.replaceChildren();
+        const workspace = document.createElement('strong');
+        workspace.textContent = `${repoFullName} · ${AppState.currentBranch}`;
+        panel.appendChild(workspace);
+        if (!status.configured) {
+            panel.appendChild(document.createElement('br'));
+            panel.append('GitHub Pages is not configured for this repository.');
+            return;
+        }
+        const source = status.source ? `${status.source.branch}${status.source.path || ''}` : status.buildType || 'GitHub Actions';
+        panel.appendChild(document.createElement('br'));
+        panel.append(`Pages source: ${source}. Build: ${status.build?.status || 'status unavailable'}. `);
+        if (AppState.lastGitHubCommitSha && status.build?.commit !== AppState.lastGitHubCommitSha) {
+            panel.append('The latest saved commit is awaiting deployment. ');
+        }
+        if (status.url) {
+            const link = document.createElement('a');
+            link.href = status.url;
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            link.textContent = 'Open published site';
+            panel.appendChild(link);
+        }
+    } catch (error) {
+        panel.textContent = `Editing ${repoFullName} on ${AppState.currentBranch}. ${error.message}`;
     }
 }
 
@@ -628,18 +863,24 @@ function renderFileTree() {
     if (AppState.searchQuery) {
         const matches = AppState.files.filter(item => item.path.toLowerCase().includes(AppState.searchQuery));
         if (matches.length === 0) {
-            fileTree.innerHTML = `<div class="empty-state"><p>No matches for "${AppState.searchQuery}"</p></div>`;
+            fileTree.innerHTML = '';
+            appendTextMessage(fileTree, `No matches for "${AppState.searchQuery}"`, 'empty-state');
             return;
         }
         fileTree.innerHTML = '';
         matches.forEach(match => {
             const row = document.createElement('div');
             row.className = `file-tree-item ${match.type}`;
-            row.innerHTML = `
-                <input type="checkbox" class="file-checkbox" ${AppState.selectedFiles.has(match.path) ? 'checked' : ''} data-path="${match.path}">
-                <i class="fas ${match.type === 'dir' ? 'fa-folder' : getFileIcon(match.name)}"></i>
-                <span>${match.path}</span>
-            `;
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.className = 'file-checkbox';
+            checkbox.checked = AppState.selectedFiles.has(match.path);
+            checkbox.dataset.path = match.path;
+            const icon = document.createElement('i');
+            icon.className = `fas ${match.type === 'dir' ? 'fa-folder' : getFileIcon(match.name)}`;
+            const label = document.createElement('span');
+            label.textContent = match.path;
+            row.append(checkbox, icon, label);
             row.addEventListener('click', e => {
                 if (e.target.classList.contains('file-checkbox')) return;
                 if (match.type === 'dir') {
@@ -672,13 +913,23 @@ function renderTreeNode(node) {
     wrapper.className = `file-tree-item ${node.type}`;
     const isSelected = AppState.selectedFiles.has(node.path);
     const icon = node.type === 'dir' ? 'fa-folder' : getFileIcon(node.name);
-    const toggleIcon = node.type === 'dir' ? '<i class="fas fa-chevron-right"></i>' : '';
-    wrapper.innerHTML = `
-        <span class="folder-toggle">${toggleIcon}</span>
-        <input type="checkbox" class="file-checkbox" data-path="${node.path}" ${isSelected ? 'checked' : ''}>
-        <i class="fas ${icon}"></i>
-        <span>${node.name || 'root'}</span>
-    `;
+    const toggle = document.createElement('span');
+    toggle.className = 'folder-toggle';
+    if (node.type === 'dir') {
+        const toggleIcon = document.createElement('i');
+        toggleIcon.className = 'fas fa-chevron-right';
+        toggle.appendChild(toggleIcon);
+    }
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.className = 'file-checkbox';
+    checkbox.dataset.path = node.path;
+    checkbox.checked = isSelected;
+    const fileIcon = document.createElement('i');
+    fileIcon.className = `fas ${icon}`;
+    const label = document.createElement('span');
+    label.textContent = node.name || 'root';
+    wrapper.append(toggle, checkbox, fileIcon, label);
 
     wrapper.addEventListener('click', e => {
         if (e.target.classList.contains('file-checkbox')) return;
@@ -816,7 +1067,8 @@ function createNewFile() {
         type: 'file',
         content: FILE_TEMPLATES[template] || '',
         modified: true,
-        isNew: true
+        isNew: true,
+        cloneId: AppState.currentCloneId || null
     };
     AppState.files.push(newFile);
     refreshFileStructure();
@@ -826,7 +1078,7 @@ function createNewFile() {
     document.getElementById('newFileModal').classList.remove('active');
 }
 
-function createNewFolder() {
+async function createNewFolder() {
     const folderName = document.getElementById('newFolderName').value.trim();
     if (!folderName) {
         alert('Please enter a folder name');
@@ -837,7 +1089,19 @@ function createNewFolder() {
         alert('Folder already exists');
         return;
     }
-    AppState.files.push({ name: folderName, path, type: 'dir', isNew: true });
+    if (AppState.currentCloneId) {
+        const response = await fetch(`/api/clone/${AppState.currentCloneId}/directory`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ path })
+        });
+        if (!response.ok) {
+            const body = await response.json().catch(() => ({}));
+            alert(`Folder creation failed: ${body.error || 'Unknown error'}`);
+            return;
+        }
+    }
+    AppState.files.push({ name: folderName, path, type: 'dir', isNew: true, cloneId: AppState.currentCloneId || null });
     refreshFileStructure();
     renderFileTree();
     saveStateToLocalStorage();
@@ -852,7 +1116,7 @@ async function openFile(file) {
         return;
     }
 
-    if (!file.content) {
+    if (typeof file.content !== 'string') {
         file.content = await fetchFileContent(file);
     }
     if (!file.baseContent) {
@@ -872,9 +1136,10 @@ async function openFile(file) {
     const ext = file.name.split('.').pop().toLowerCase();
     setEditorMode(ext);
     updateCurrentFileName();
-    document.getElementById('fileStatus').textContent = 'Saved';
+    document.getElementById('fileStatus').textContent = file.modified ? 'Unsaved' : 'Saved';
     renderTabs();
-    document.getElementById('guiCanvas').innerHTML = file.content || '';
+    document.getElementById('guiCanvas').innerHTML = GhpWorkspacePreview.visualBody(file.content || '');
+    prepareGuiCanvas();
     PluginManager.runHook('onFileOpen', { file });
 }
 
@@ -903,7 +1168,13 @@ function renderTabs() {
         const tab = document.createElement('div');
         tab.className = 'editor-tab';
         if (file === AppState.currentFile) tab.classList.add('active');
-        tab.innerHTML = `<span>${file.name}${file.modified ? '*' : ''}</span><span class="close-tab" data-path="${file.path}">×</span>`;
+        const label = document.createElement('span');
+        label.textContent = `${file.name}${file.modified ? '*' : ''}`;
+        const close = document.createElement('span');
+        close.className = 'close-tab';
+        close.dataset.path = file.path;
+        close.textContent = '×';
+        tab.append(label, close);
         tab.addEventListener('click', e => {
             if (!e.target.classList.contains('close-tab')) {
                 switchToTab(file);
@@ -920,7 +1191,8 @@ function renderTabs() {
 function switchToTab(file) {
     AppState.currentFile = file;
     AppState.editor.setValue(file.content || '');
-    document.getElementById('guiCanvas').innerHTML = file.content || '';
+    document.getElementById('guiCanvas').innerHTML = GhpWorkspacePreview.visualBody(file.content || '');
+    prepareGuiCanvas();
     updateCurrentFileName();
     const ext = file.name.split('.').pop().toLowerCase();
     setEditorMode(ext);
@@ -951,85 +1223,153 @@ function updateCurrentTab() {
 
 async function saveCurrentFile() {
     if (!AppState.currentFile) return;
-    AppState.currentFile.content = AppState.editor.getValue();
-    AppState.currentFile.modified = false;
-    AppState.currentFile.baseContent = AppState.currentFile.content;
-    document.getElementById('fileStatus').textContent = 'Saved';
-    const index = AppState.files.findIndex(f => f.path === AppState.currentFile.path);
-    if (index !== -1) AppState.files[index] = AppState.currentFile;
-    saveStateToLocalStorage();
-    if (AppState.githubToken && AppState.currentRepo && !AppState.currentFile.isNew) {
-        try {
+    const file = AppState.currentFile;
+    file.content = AppState.editor.getValue();
+    document.getElementById('fileStatus').textContent = 'Saving…';
+    try {
+        if (file.cloneId) {
+            await saveCloneFile(file);
+        } else if (AppState.githubAuthenticated && AppState.currentRepo) {
             await saveToGitHub(AppState.currentFile);
-            alert('File saved to GitHub successfully!');
-        } catch (error) {
-            console.error('Failed to save to GitHub:', error);
-            alert('Failed to save to GitHub. File saved locally.');
+            file.isNew = false;
+        } else {
+            saveStateToLocalStorage();
         }
-    } else {
-        alert('File saved locally!');
+        file.modified = false;
+        file.baseContent = file.content;
+        AppState.fileCache[file.path] = file.content;
+        document.getElementById('fileStatus').textContent = 'Saved';
+        const index = AppState.files.findIndex(candidate => candidate.path === file.path);
+        if (index !== -1) AppState.files[index] = file;
+        PluginManager.runHook('onFileSave', { file });
+        renderTabs();
+    } catch (error) {
+        file.modified = true;
+        document.getElementById('fileStatus').textContent = 'Save failed';
+        console.error('Failed to save file:', error);
+        alert(`Save failed: ${error.message}`);
     }
-    PluginManager.runHook('onFileSave', { file: AppState.currentFile });
-    renderTabs();
+}
+
+async function saveCloneFile(file) {
+    const response = await fetch(`/api/clone/${file.cloneId}/file`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: file.path, content: file.content })
+    });
+    if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.error || 'Clone save failed');
+    }
 }
 
 async function saveToGitHub(file) {
-    const response = await fetch(`https://api.github.com/repos/${AppState.currentRepo}/contents/${file.path}`, {
+    const response = await fetch(`/api/github/repos/${AppState.currentRepo}/contents/${encodeGitHubPath(file.path)}`, {
         method: 'PUT',
         headers: {
-            Authorization: `token ${AppState.githubToken}`,
-            Accept: 'application/vnd.github.v3+json',
             'Content-Type': 'application/json'
         },
         body: JSON.stringify({
             message: `Update ${file.name}`,
             content: btoa(unescape(encodeURIComponent(file.content))),
-            sha: file.sha
+            sha: file.sha,
+            branch: AppState.currentBranch
         })
     });
-    if (!response.ok) throw new Error('Failed to save to GitHub');
+    if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.message || `GitHub save failed (${response.status})`);
+    }
     const result = await response.json();
+    if (!result.content?.sha) throw new Error('GitHub did not return the saved file revision');
     file.sha = result.content.sha;
+    file.githubPath = file.path;
+    AppState.lastGitHubCommitSha = result.commit?.sha || null;
+    loadPagesStatus();
 }
 
-function deleteCurrentFile() {
+async function deleteCurrentFile() {
     if (!AppState.currentFile) return;
-    if (!confirm(`Delete ${AppState.currentFile.name}?`)) return;
-    AppState.files = AppState.files.filter(f => f.path !== AppState.currentFile.path);
-    AppState.selectedFiles.delete(AppState.currentFile.path);
+    const file = AppState.currentFile;
+    if (!confirm(`Delete ${file.name}?`)) return;
+    try {
+        if (file.cloneId) {
+            const params = new URLSearchParams({ path: file.path });
+            const response = await fetch(`/api/clone/${file.cloneId}/file?${params}`, { method: 'DELETE' });
+            if (!response.ok) throw new Error((await response.json()).error || 'Delete failed');
+        } else if (AppState.currentRepo && AppState.githubAuthenticated && file.sha) {
+            const response = await fetch(`/api/github/repos/${AppState.currentRepo}/contents/${encodeGitHubPath(file.path)}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ message: `Delete ${file.name}`, sha: file.sha, branch: AppState.currentBranch })
+            });
+            if (!response.ok) {
+                const body = await response.json().catch(() => ({}));
+                throw new Error(body.message || `GitHub delete failed (${response.status})`);
+            }
+        }
+    } catch (error) {
+        alert(`Delete failed: ${error.message}`);
+        return;
+    }
+    AppState.files = AppState.files.filter(candidate => candidate.path !== file.path);
+    AppState.selectedFiles.delete(file.path);
     refreshFileStructure();
-    closeTab(AppState.currentFile);
+    closeTab(file);
     renderFileTree();
     saveStateToLocalStorage();
 }
 
-function togglePreview() {
+async function togglePreview() {
     if (!AppState.currentFile) {
         alert('Open a file first');
         return;
     }
     const preview = document.getElementById('preview');
+    const editorStack = preview.closest('.editor-stack');
     if (preview.style.display === 'none' || preview.style.display === '') {
         preview.style.display = 'flex';
+        editorStack.classList.add('preview-open');
         const content = AppState.editor.getValue();
         const iframe = document.getElementById('previewFrame');
-        const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+        (AppState.previewObjectUrls || []).forEach(url => URL.revokeObjectURL(url));
+        AppState.previewObjectUrls = [];
         if (AppState.currentFile?.name.endsWith('.md')) {
-            iframeDoc.open();
-            iframeDoc.write(`<html><body>${marked.parse(content)}</body></html>`);
-            iframeDoc.close();
+            iframe.srcdoc = `<html><body>${marked.parse(content)}</body></html>`;
         } else {
-            iframeDoc.open();
-            iframeDoc.write(content);
-            iframeDoc.close();
+            const preview = await GhpWorkspacePreview.composePreview(
+                content,
+                AppState.currentFile,
+                AppState.files,
+                fetchFileContent,
+                fetchFileAsset
+            );
+            AppState.previewObjectUrls = preview.objectUrls;
+            if (window.GhpStaticApi) {
+                iframe.removeAttribute('src');
+                iframe.srcdoc = preview.html;
+            } else {
+                iframe.removeAttribute('srcdoc');
+                const response = await fetch('/api/preview', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ html: preview.html })
+                });
+                if (!response.ok) throw new Error('Unable to prepare the isolated preview');
+                const prepared = await response.json();
+                iframe.src = `/api/preview/${encodeURIComponent(prepared.id)}`;
+            }
         }
     } else {
         preview.style.display = 'none';
+        editorStack.classList.remove('preview-open');
     }
 }
 
 function refreshFileTree() {
-    if (AppState.currentRepo && AppState.githubToken) {
+    if (AppState.currentRepo && AppState.githubAuthenticated) {
         loadRepository(AppState.currentRepo);
     } else {
         refreshFileStructure();
@@ -1037,31 +1377,75 @@ function refreshFileTree() {
     }
 }
 
-function downloadProject() {
-    const projectData = {
-        files: AppState.files,
-        metadata: {
-            name: 'GitHub Pages Project',
-            created: new Date().toISOString()
+async function downloadProject() {
+    const button = document.getElementById('downloadBtn');
+    const originalLabel = button.innerHTML;
+    button.disabled = true;
+    button.textContent = 'Building ZIP…';
+    try {
+        const entries = {};
+        for (const file of AppState.files.filter(candidate => candidate.type === 'file')) {
+            const base64 = await fetchFileBase64(file);
+            if (!base64) throw new Error(`Unable to include ${file.path}`);
+            entries[file.path] = base64ToBytes(base64);
         }
-    };
-    const dataStr = JSON.stringify(projectData, null, 2);
-    const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
-    const linkElement = document.createElement('a');
-    linkElement.href = dataUri;
-    linkElement.download = 'github-pages-project.json';
-    linkElement.click();
+        if (!Object.keys(entries).length) throw new Error('The workspace has no files to export');
+        const archive = fflate.zipSync(entries, { level: 6 });
+        const url = URL.createObjectURL(new Blob([archive], { type: 'application/zip' }));
+        const link = document.createElement('a');
+        link.href = url;
+        const projectName = (AppState.currentRepo?.split('/').pop() || 'github-pages-site').replace(/[^A-Za-z0-9._-]/g, '-');
+        link.download = `${projectName}.zip`;
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (error) {
+        alert(`Export failed: ${error.message}`);
+    } finally {
+        button.disabled = false;
+        button.innerHTML = originalLabel;
+    }
 }
 
-function bulkDeleteSelected() {
+async function bulkDeleteSelected() {
     if (!AppState.selectedFiles.size) {
         alert('Select files first');
         return;
     }
-    if (!confirm(`Delete ${AppState.selectedFiles.size} files?`)) return;
-    AppState.files = AppState.files.filter(f => !AppState.selectedFiles.has(f.path));
-    AppState.openTabs = AppState.openTabs.filter(tab => !AppState.selectedFiles.has(tab.path));
-    if (AppState.currentFile && AppState.selectedFiles.has(AppState.currentFile.path)) {
+    const roots = [...AppState.selectedFiles];
+    const targets = AppState.files.filter(file => roots.some(root => file.path === root || file.path.startsWith(`${root}/`)));
+    if (!confirm(`Delete ${targets.length} workspace item${targets.length === 1 ? '' : 's'}?`)) return;
+    try {
+        for (const file of targets.filter(candidate => candidate.type === 'file')) {
+            if (file.cloneId) {
+                const params = new URLSearchParams({ path: file.path });
+                const response = await fetch(`/api/clone/${file.cloneId}/file?${params}`, { method: 'DELETE' });
+                if (!response.ok) throw new Error((await response.json().catch(() => ({}))).error || `Unable to delete ${file.path}`);
+            } else if (AppState.currentRepo && AppState.githubAuthenticated && file.sha) {
+                const response = await fetch(`/api/github/repos/${AppState.currentRepo}/contents/${encodeGitHubPath(file.path)}`, {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: `Delete ${file.name}`, sha: file.sha, branch: AppState.currentBranch })
+                });
+                if (!response.ok) throw new Error((await response.json().catch(() => ({}))).message || `Unable to delete ${file.path}`);
+            }
+        }
+        const cloneDirectories = targets
+            .filter(candidate => candidate.type === 'dir' && candidate.cloneId)
+            .sort((a, b) => b.path.split('/').length - a.path.split('/').length);
+        for (const directory of cloneDirectories) {
+            const params = new URLSearchParams({ path: directory.path });
+            const response = await fetch(`/api/clone/${directory.cloneId}/directory?${params}`, { method: 'DELETE' });
+            if (!response.ok) throw new Error((await response.json().catch(() => ({}))).error || `Unable to delete ${directory.path}`);
+        }
+    } catch (error) {
+        alert(`Bulk delete failed: ${error.message}`);
+        refreshFileTree();
+        return;
+    }
+    const targetPaths = new Set(targets.map(file => file.path));
+    AppState.files = AppState.files.filter(file => !targetPaths.has(file.path));
+    AppState.openTabs = AppState.openTabs.filter(tab => !targetPaths.has(tab.path));
+    if (AppState.currentFile && targetPaths.has(AppState.currentFile.path)) {
         AppState.currentFile = null;
         document.getElementById('editorWrapper').style.display = 'none';
         document.getElementById('welcomeScreen').style.display = 'flex';
@@ -1070,6 +1454,8 @@ function bulkDeleteSelected() {
     refreshFileStructure();
     renderFileTree();
     renderTabs();
+    saveStateToLocalStorage();
+    if (AppState.currentRepo) loadPagesStatus();
 }
 
 async function bulkDownloadSelected() {
@@ -1119,7 +1505,11 @@ async function runContentSearch() {
     results.forEach(result => {
         const div = document.createElement('div');
         div.className = 'search-result';
-        div.innerHTML = `<strong>${result.file.path}</strong><p>${result.snippet.replace(query, `<mark>${query}</mark>`)}</p>`;
+        const title = document.createElement('strong');
+        title.textContent = result.file.path;
+        const snippet = document.createElement('p');
+        snippet.textContent = result.snippet;
+        div.append(title, snippet);
         div.addEventListener('click', () => {
             document.getElementById('searchModal').classList.remove('active');
             openFile(result.file);
@@ -1129,7 +1519,7 @@ async function runContentSearch() {
 }
 
 async function loadCommitHistory() {
-    if (!AppState.currentRepo || !AppState.githubToken) {
+    if (!AppState.currentRepo || !AppState.githubAuthenticated) {
         alert('Connect to a repository first');
         return;
     }
@@ -1138,33 +1528,70 @@ async function loadCommitHistory() {
     list.innerHTML = '<p>Loading commits...</p>';
     try {
         const filePath = AppState.currentFile?.path;
-        const url = new URL(`https://api.github.com/repos/${AppState.currentRepo}/commits`);
+        const url = new URL(`/api/github/repos/${AppState.currentRepo}/commits`, window.location.origin);
         url.searchParams.set('sha', AppState.currentBranch);
         url.searchParams.set('per_page', '20');
         if (filePath) url.searchParams.set('path', filePath);
-        const response = await fetch(url, {
-            headers: {
-                Authorization: `token ${AppState.githubToken}`,
-                Accept: 'application/vnd.github.v3+json'
-            }
-        });
+        const response = await fetch(url);
         if (!response.ok) throw new Error('Failed to fetch commits');
         const commits = await response.json();
         list.innerHTML = '';
         commits.forEach(commit => {
             const item = document.createElement('div');
             item.className = 'commit-item';
-            item.innerHTML = `
-                <strong>${commit.commit.message}</strong>
-                <p>${commit.commit.author.name} · ${new Date(commit.commit.author.date).toLocaleString()}</p>
-                <code>${commit.sha.slice(0, 7)}</code>
-            `;
+            const title = document.createElement('strong');
+            title.textContent = commit.commit.message;
+            const author = document.createElement('p');
+            author.textContent = `${commit.commit.author.name} · ${new Date(commit.commit.author.date).toLocaleString()}`;
+            const sha = document.createElement('code');
+            sha.textContent = commit.sha.slice(0, 7);
+            item.append(title, author, sha);
             list.appendChild(item);
         });
     } catch (error) {
         console.error(error);
         list.innerHTML = '<p class="empty-state">Failed to load commits.</p>';
     }
+}
+
+async function openCloneChanges() {
+    if (!AppState.currentCloneId) return;
+    showModal('cloneChangesModal');
+    const list = document.getElementById('cloneStatusList');
+    list.textContent = 'Loading status…';
+    try {
+        const response = await fetch(`/api/clone/${AppState.currentCloneId}/status`);
+        if (!response.ok) throw new Error('Unable to load status');
+        const status = await response.json();
+        list.innerHTML = '';
+        if (!status.files.length) {
+            appendTextMessage(list, 'Working tree is clean.', 'empty-state');
+            return;
+        }
+        status.files.forEach(file => appendTextMessage(list, `${file.index}${file.working_dir} ${file.path}`, 'commit-item'));
+    } catch (error) {
+        list.textContent = error.message;
+    }
+}
+
+async function commitCloneChanges() {
+    if (!AppState.currentCloneId) return;
+    const message = document.getElementById('cloneCommitMessage').value.trim();
+    const authorName = document.getElementById('cloneAuthorName').value.trim();
+    const authorEmail = document.getElementById('cloneAuthorEmail').value.trim();
+    const response = await fetch(`/api/clone/${AppState.currentCloneId}/commit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message, authorName, authorEmail })
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+        alert(body.error || 'Commit failed');
+        return;
+    }
+    document.getElementById('cloneCommitMessage').value = '';
+    await openCloneChanges();
+    alert(`Committed ${body.sha.slice(0, 7)} locally.`);
 }
 
 function openDiffViewer() {
@@ -1237,7 +1664,8 @@ function switchEditorMode(mode) {
     }
     document.getElementById('guiEditor').style.display = mode === 'gui' ? 'grid' : 'none';
     if (mode === 'gui' && AppState.currentFile) {
-        document.getElementById('guiCanvas').innerHTML = AppState.editor.getValue();
+        document.getElementById('guiCanvas').innerHTML = GhpWorkspacePreview.visualBody(AppState.editor.getValue());
+        prepareGuiCanvas();
     }
 }
 
@@ -1314,15 +1742,12 @@ function copyCollabLink() {
 
 function saveCopilotSettings() {
     const token = document.getElementById('copilotToken').value.trim();
-    const endpoint = document.getElementById('copilotEndpoint').value.trim();
     if (!token) {
         alert('Token required');
         return;
     }
     AppState.copilotToken = token;
-    AppState.copilotEndpoint = endpoint || AppState.copilotEndpoint;
-    localStorage.setItem('copilotToken', AppState.copilotToken);
-    localStorage.setItem('copilotEndpoint', AppState.copilotEndpoint);
+    document.getElementById('copilotToken').value = '';
     document.getElementById('copilotModal').classList.remove('active');
     document.getElementById('copilotMessages').innerHTML = '<p class="copilot-message">Copilot connected.</p>';
 }
@@ -1335,7 +1760,7 @@ async function sendCopilotPrompt() {
     const prompt = document.getElementById('copilotPrompt').value.trim();
     if (!prompt) return;
     const messages = document.getElementById('copilotMessages');
-    messages.innerHTML += `<div class="copilot-message user">${prompt}</div>`;
+    appendTextMessage(messages, prompt, 'copilot-message user');
     document.getElementById('copilotPrompt').value = '';
     try {
         const response = await fetch(AppState.copilotEndpoint, {
@@ -1355,7 +1780,7 @@ async function sendCopilotPrompt() {
         if (!response.ok) throw new Error('Copilot request failed');
         const data = await response.json();
         const answer = data.choices?.[0]?.message?.content || 'No response';
-        messages.innerHTML += `<div class="copilot-message assistant">${answer}</div>`;
+        appendTextMessage(messages, answer, 'copilot-message assistant');
     } catch (error) {
         console.error(error);
         messages.innerHTML += '<div class="copilot-message assistant">Copilot unavailable. Check token/endpoint.</div>';
@@ -1363,31 +1788,11 @@ async function sendCopilotPrompt() {
 }
 
 async function addPluginFromUrl() {
-    const url = document.getElementById('pluginUrl').value.trim();
-    if (!url) return;
-    try {
-        const res = await fetch(url);
-        const code = await res.text();
-        const plugin = eval(`(${code})`);
-        PluginManager.register(plugin, code);
-        document.getElementById('pluginUrl').value = '';
-    } catch (error) {
-        alert('Failed to load plugin');
-        console.error(error);
-    }
+    alert('Third-party plugins are disabled until sandboxing is available.');
 }
 
 function addPluginFromCode() {
-    const code = document.getElementById('pluginCode').value.trim();
-    if (!code) return;
-    try {
-        const plugin = eval(`(${code})`);
-        PluginManager.register(plugin, code);
-        document.getElementById('pluginCode').value = '';
-    } catch (error) {
-        alert('Invalid plugin code');
-        console.error(error);
-    }
+    alert('Inline plugins are disabled until sandboxing is available.');
 }
 
 function renderPlugins() {
@@ -1401,7 +1806,13 @@ function renderPlugins() {
     AppState.plugins.forEach(plugin => {
         const card = document.createElement('div');
         card.className = 'plugin-card';
-        card.innerHTML = `<div><strong>${plugin.name || plugin.id}</strong><p>${plugin.description || ''}</p></div>`;
+        const details = document.createElement('div');
+        const title = document.createElement('strong');
+        const description = document.createElement('p');
+        title.textContent = plugin.name || plugin.id;
+        description.textContent = plugin.description || '';
+        details.append(title, description);
+        card.appendChild(details);
         const removeBtn = document.createElement('button');
         removeBtn.className = 'btn btn-small btn-danger';
         removeBtn.textContent = 'Remove';
@@ -1426,25 +1837,7 @@ function persistPlugins() {
 }
 
 function loadPluginsFromStorage() {
-    const stored = localStorage.getItem('pluginStore');
-    if (!stored) return;
-    try {
-        const plugins = JSON.parse(stored);
-        plugins.forEach(meta => {
-            if (meta.source) {
-                try {
-                    const plugin = eval(`(${meta.source})`);
-                    PluginManager.register(plugin, meta.source);
-                } catch (error) {
-                    console.error('Failed to revive plugin', meta.id, error);
-                }
-            } else {
-                PluginManager.register({ id: meta.id, name: meta.name, description: meta.description }, '');
-            }
-        });
-    } catch (error) {
-        console.error('Failed to load plugins', error);
-    }
+    localStorage.removeItem('pluginStore');
 }
 
 function saveStateToLocalStorage() {

@@ -5,121 +5,298 @@ const os = require('os');
 const crypto = require('crypto');
 const helmet = require('helmet');
 const simpleGit = require('simple-git');
+const {
+  assertExistingDirectory,
+  assertExistingFile,
+  listFilesRecursive,
+  parseAllowedHosts,
+  resolveWritableDirectory,
+  resolveWritableFile,
+  validateBranch,
+  validateCloneUrl
+} = require('./lib/clone-workspace');
+const { registerGitHubRoutes } = require('./lib/github-app');
 
-const app = express();
-const PORT = process.env.PORT || 3000;
+const MAX_FILE_SIZE = 2 * 1024 * 1024;
+const DEFAULT_CLONES_DIR = path.join(os.tmpdir(), 'ghp-webeditor-clones');
 
-// Basic security headers
-app.use(helmet());
-
-app.use(express.json({ limit: '2mb' }));
-app.use(express.static(path.join(__dirname, 'public')));
-
-// In-memory registry of cloned repos
-const CLONES_DIR = path.join(os.tmpdir(), 'ghp-webeditor-clones');
-if (!fs.existsSync(CLONES_DIR)) fs.mkdirSync(CLONES_DIR, { recursive: true });
-const cloneRegistry = new Map(); // id -> { dir, url, createdAt }
-
-function isValidGitUrl(url) {
-  try {
-    // Allow https://, git+https://, and git@ (ssh) minimal validation
-    if (/^git@[^:]+:.+/.test(url)) return true;
-    const u = new URL(url.replace(/^git\+/, ''));
-    return ['https:', 'http:'].includes(u.protocol) && !!u.hostname && /\/.+/.test(u.pathname);
-  } catch (e) {
-    return false;
-  }
+function bufferedStatic(root, options = {}) {
+  const resolvedRoot = path.resolve(root);
+  return async (req, res, next) => {
+    if (!['GET', 'HEAD'].includes(req.method)) return next();
+    try {
+      const requested = decodeURIComponent(req.path);
+      const relative = requested === '/' && options.index ? options.index : requested.replace(/^\/+/, '');
+      if (!relative || relative.includes('\0')) return next();
+      const fullPath = path.resolve(resolvedRoot, relative);
+      const boundary = `${resolvedRoot}${path.sep}`;
+      if (!fullPath.startsWith(boundary)) return next();
+      const data = await fs.promises.readFile(fullPath);
+      // Express treats a Buffer as generic binary unless a concrete MIME type is
+      // already present. Pass only the extension so index.html is rendered rather
+      // than offered as a download by Chromium.
+      res.type(path.extname(fullPath));
+      res.set('Cache-Control', 'no-cache');
+      if (req.method === 'HEAD') return res.status(200).end();
+      return res.send(data);
+    } catch (error) {
+      if (error.code === 'ENOENT' || error.code === 'EISDIR') return next();
+      return next(error);
+    }
+  };
 }
 
-function listFilesRecursive(baseDir) {
-  const results = [];
-  function walk(current, rel = '') {
-    const entries = fs.readdirSync(current, { withFileTypes: true });
-    for (const entry of entries) {
-      const full = path.join(current, entry.name);
-      const relPath = path.join(rel, entry.name);
-      // Skip VCS/internal folders
-      if (entry.name === '.git') continue;
-      if (entry.isDirectory()) {
-        results.push({ path: relPath, type: 'dir' });
-        walk(full, relPath);
-      } else if (entry.isFile()) {
-        results.push({ path: relPath, type: 'file', size: fs.statSync(full).size });
+function createApp(options = {}) {
+  const app = express();
+  const clonesDir = options.clonesDir || DEFAULT_CLONES_DIR;
+  const cloneRegistry = options.cloneRegistry || new Map();
+  const previewRegistry = options.previewRegistry || new Map();
+  const authStates = options.authStates || new Map();
+  const githubSessions = options.githubSessions || new Map();
+  const githubFetch = options.githubFetch || global.fetch;
+  const githubConfig = options.githubConfig || {
+    clientId: process.env.GITHUB_APP_CLIENT_ID,
+    clientSecret: process.env.GITHUB_APP_CLIENT_SECRET,
+    slug: process.env.GITHUB_APP_SLUG,
+    callbackUrl: process.env.GITHUB_APP_CALLBACK_URL
+  };
+  const allowedHosts = options.allowedHosts || parseAllowedHosts();
+  const cloneRepository = options.cloneRepository || (async (url, dir, cloneOptions) => {
+    const git = simpleGit({ timeout: { block: Number(process.env.CLONE_TIMEOUT_MS) || 120_000 } });
+    await git.clone(url, dir, cloneOptions);
+  });
+
+  fs.mkdirSync(clonesDir, { recursive: true });
+  app.disable('x-powered-by');
+  app.use(helmet({
+    crossOriginEmbedderPolicy: false,
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", 'blob:'],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", 'data:', 'https:'],
+        connectSrc: ["'self'", 'https://copilot-proxy.githubusercontent.com'],
+        frameSrc: ["'self'", 'blob:'],
+        objectSrc: ["'none'"],
+        baseUri: ["'self'"],
+        formAction: ["'self'"]
       }
     }
+  }));
+  app.use(express.json({ limit: `${MAX_FILE_SIZE}b` }));
+  app.use('/lib/codemirror', bufferedStatic(path.join(__dirname, 'node_modules', 'codemirror')));
+  app.use('/lib/marked', bufferedStatic(path.join(__dirname, 'node_modules', 'marked')));
+  app.use('/lib/fontawesome/fontawesome-free', bufferedStatic(path.join(__dirname, 'node_modules', '@fortawesome', 'fontawesome-free')));
+  app.use('/lib/fflate', bufferedStatic(path.join(__dirname, 'node_modules', 'fflate')));
+  app.use(bufferedStatic(path.join(__dirname, 'public'), { index: 'index.html' }));
+
+  function getClone(req, res) {
+    const entry = cloneRegistry.get(req.params.id);
+    if (!entry) res.status(404).json({ error: 'Clone not found' });
+    return entry;
   }
-  walk(baseDir);
-  return results;
-}
 
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
+  app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
+  registerGitHubRoutes(app, { authStates, githubSessions, githubFetch, githubConfig });
 
-// POST /api/clone { url: string, shallow?: boolean, branch?: string }
-app.post('/api/clone', async (req, res) => {
-  try {
+  app.post('/api/preview', (req, res) => {
+    const html = req.body?.html;
+    if (typeof html !== 'string' || Buffer.byteLength(html) > MAX_FILE_SIZE) {
+      return res.status(400).json({ error: 'Preview must be HTML no larger than 2MB' });
+    }
+    const now = Date.now();
+    for (const [key, value] of previewRegistry) {
+      if (now - value.createdAt > 5 * 60_000) previewRegistry.delete(key);
+    }
+    while (previewRegistry.size >= 20) previewRegistry.delete(previewRegistry.keys().next().value);
+    const id = crypto.randomUUID();
+    previewRegistry.set(id, { html, createdAt: now });
+    return res.status(201).json({ id });
+  });
+
+  app.get('/api/preview/:id', (req, res) => {
+    const preview = previewRegistry.get(req.params.id);
+    if (!preview) return res.status(404).send('Preview not found');
+    res.set('Content-Security-Policy', [
+      "default-src 'none'",
+      "script-src 'unsafe-inline' data: https:",
+      "style-src 'unsafe-inline' https:",
+      "img-src data: blob: https:",
+      "font-src data: https:",
+      "connect-src https:",
+      "media-src blob: https:",
+      "frame-src https:",
+      "base-uri 'none'",
+      "form-action 'none'"
+    ].join('; '));
+    return res.type('html').send(preview.html);
+  });
+
+  app.post('/api/clone', async (req, res) => {
     const { url, shallow = true, branch } = req.body || {};
-    if (!url || !isValidGitUrl(url)) {
-      return res.status(400).json({ error: 'Invalid or missing repo URL' });
+    if (!validateCloneUrl(url, allowedHosts) || !validateBranch(branch) || typeof shallow !== 'boolean') {
+      return res.status(400).json({ error: 'Invalid clone request' });
     }
     const id = crypto.randomUUID();
-    const dir = path.join(CLONES_DIR, id);
-    fs.mkdirSync(dir, { recursive: true });
-    const git = simpleGit({ baseDir: dir });
+    const dir = path.join(clonesDir, id);
     const cloneOptions = [];
     if (shallow) cloneOptions.push('--depth', '1');
     if (branch) cloneOptions.push('--branch', branch);
+    try {
+      await cloneRepository(url, dir, cloneOptions);
+      cloneRegistry.set(id, { id, dir, url, branch: branch || null, createdAt: Date.now() });
+      return res.json({ id, url, branch: branch || null, status: 'cloned' });
+    } catch (error) {
+      fs.rmSync(dir, { recursive: true, force: true });
+      console.error('Clone failed:', error.message);
+      return res.status(502).json({ error: 'Clone failed' });
+    }
+  });
 
-    // Clone INTO the created directory (".") to avoid nesting
-    await git.clone(url, '.', cloneOptions);
+  app.get('/api/clone/:id/tree', (req, res) => {
+    const entry = getClone(req, res);
+    if (!entry) return;
+    try {
+      return res.json({ id: entry.id, files: listFilesRecursive(entry.dir) });
+    } catch (error) {
+      console.error('List tree failed:', error.message);
+      return res.status(422).json({ error: 'Unable to list repository tree' });
+    }
+  });
 
-    cloneRegistry.set(id, { id, dir, url, branch: branch || null, createdAt: Date.now() });
-    return res.json({ id, url, branch: branch || null, status: 'cloned' });
-  } catch (error) {
-    console.error('Clone failed:', error);
-    return res.status(500).json({ error: 'Clone failed', detail: String(error.message || error) });
-  }
-});
+  app.get('/api/clone/:id/file', (req, res) => {
+    const entry = getClone(req, res);
+    if (!entry) return;
+    try {
+      const { normalized, fullPath, stat } = assertExistingFile(entry.dir, req.query.path);
+      if (stat.size > MAX_FILE_SIZE) {
+        return res.json({ path: normalized, encoding: 'base64', size: stat.size, content: null, tooLarge: true });
+      }
+      const data = fs.readFileSync(fullPath);
+      if (req.query.encoding === 'base64') {
+        return res.json({ path: normalized, content: data.toString('base64'), encoding: 'base64', size: stat.size });
+      }
+      return res.json({ path: normalized, content: data.toString('utf8'), encoding: 'utf8', size: stat.size });
+    } catch (error) {
+      const status = error.code === 'ENOENT' ? 404 : 400;
+      return res.status(status).json({ error: status === 404 ? 'File not found' : error.message });
+    }
+  });
 
-// GET /api/clone/:id/tree
-app.get('/api/clone/:id/tree', (req, res) => {
-  const { id } = req.params;
-  const entry = cloneRegistry.get(id);
-  if (!entry) return res.status(404).json({ error: 'Clone not found' });
-  try {
-    const files = listFilesRecursive(entry.dir);
-    return res.json({ id, files });
-  } catch (error) {
-    console.error('List tree failed:', error);
-    return res.status(500).json({ error: 'Failed to list tree' });
-  }
-});
+  app.put('/api/clone/:id/file', (req, res) => {
+    const entry = getClone(req, res);
+    if (!entry) return;
+    const { path: requestedPath, content } = req.body || {};
+    if (typeof content !== 'string' || Buffer.byteLength(content) > MAX_FILE_SIZE) {
+      return res.status(400).json({ error: 'Content must be UTF-8 text no larger than 2MB' });
+    }
+    try {
+      const { normalized, fullPath } = resolveWritableFile(entry.dir, requestedPath);
+      fs.writeFileSync(fullPath, content, { encoding: 'utf8', flag: 'w' });
+      return res.json({ path: normalized, size: Buffer.byteLength(content), status: 'saved' });
+    } catch (error) {
+      return res.status(400).json({ error: error.message });
+    }
+  });
 
-// GET /api/clone/:id/file?path=...
-app.get('/api/clone/:id/file', (req, res) => {
-  const { id } = req.params;
-  const relPath = req.query.path;
-  const entry = cloneRegistry.get(id);
-  if (!entry) return res.status(404).json({ error: 'Clone not found' });
-  if (!relPath || relPath.includes('..')) return res.status(400).json({ error: 'Invalid path' });
-  const full = path.join(entry.dir, relPath);
-  // Block access to VCS internals
-  if (relPath === '.git' || relPath.startsWith('.git/')) return res.status(403).json({ error: 'Forbidden' });
-  if (!fs.existsSync(full)) return res.status(404).json({ error: 'File not found' });
-  const stat = fs.statSync(full);
-  if (stat.isDirectory()) return res.status(400).json({ error: 'Path is a directory' });
-  const maxSize = 2 * 1024 * 1024; // 2MB limit for inline content
-  if (stat.size > maxSize) {
-    return res.json({ path: relPath, encoding: 'base64', size: stat.size, content: null, tooLarge: true });
-  }
-  const buf = fs.readFileSync(full);
-  // naive text detection: try utf8 decode
-  let content = buf.toString('utf8');
-  return res.json({ path: relPath, content, encoding: 'utf8', size: stat.size });
-});
+  app.post('/api/clone/:id/directory', (req, res) => {
+    const entry = getClone(req, res);
+    if (!entry) return;
+    try {
+      const { normalized, fullPath } = resolveWritableDirectory(entry.dir, req.body?.path);
+      fs.mkdirSync(fullPath);
+      return res.json({ path: normalized, status: 'created' });
+    } catch (error) {
+      return res.status(400).json({ error: error.message });
+    }
+  });
 
-app.listen(PORT, () => {
-  console.log(`GitHub Pages Web Editor running at http://localhost:${PORT}`);
-  console.log('Open your browser to start editing!');
-});
+  app.delete('/api/clone/:id/file', (req, res) => {
+    const entry = getClone(req, res);
+    if (!entry) return;
+    try {
+      const { normalized, fullPath } = assertExistingFile(entry.dir, req.query.path);
+      fs.unlinkSync(fullPath);
+      return res.json({ path: normalized, status: 'deleted' });
+    } catch (error) {
+      const status = error.code === 'ENOENT' ? 404 : 400;
+      return res.status(status).json({ error: status === 404 ? 'File not found' : error.message });
+    }
+  });
+
+  app.delete('/api/clone/:id/directory', (req, res) => {
+    const entry = getClone(req, res);
+    if (!entry) return;
+    try {
+      const { normalized, fullPath } = assertExistingDirectory(entry.dir, req.query.path);
+      fs.rmdirSync(fullPath);
+      return res.json({ path: normalized, status: 'deleted' });
+    } catch (error) {
+      const status = error.code === 'ENOENT' ? 404 : 400;
+      return res.status(status).json({ error: status === 404 ? 'Directory not found' : error.message });
+    }
+  });
+
+  app.get('/api/clone/:id/status', async (req, res) => {
+    const entry = getClone(req, res);
+    if (!entry) return;
+    try {
+      const status = await simpleGit(entry.dir).status();
+      return res.json({
+        current: status.current,
+        tracking: status.tracking,
+        files: status.files.map(file => ({ path: file.path, index: file.index, working_dir: file.working_dir }))
+      });
+    } catch (error) {
+      console.error('Status failed:', error.message);
+      return res.status(500).json({ error: 'Unable to read repository status' });
+    }
+  });
+
+  app.post('/api/clone/:id/commit', async (req, res) => {
+    const entry = getClone(req, res);
+    if (!entry) return;
+    const { message, authorName, authorEmail } = req.body || {};
+    if (typeof message !== 'string' || !message.trim() || message.length > 200
+      || typeof authorName !== 'string' || !authorName.trim() || /[\r\n]/.test(authorName)
+      || typeof authorEmail !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(authorEmail)) {
+      return res.status(400).json({ error: 'A valid message, author name, and author email are required' });
+    }
+    try {
+      const git = simpleGit(entry.dir);
+      await git.raw(['add', '--all', '--']);
+      const result = await git.raw([
+        '-c', `user.name=${authorName}`,
+        '-c', `user.email=${authorEmail}`,
+        'commit', '-m', message.trim(), '--'
+      ]);
+      const sha = await git.revparse(['HEAD']);
+      return res.json({ status: 'committed', sha: sha.trim(), summary: result.trim() });
+    } catch (error) {
+      console.error('Commit failed:', error.message);
+      return res.status(409).json({ error: 'Commit failed; verify that the workspace has changes' });
+    }
+  });
+
+  app.use((error, _req, res, next) => {
+    console.error('Request failed:', error.message);
+    if (res.headersSent) return next(error);
+    return res.status(500).json({ error: 'Internal server error' });
+  });
+
+  return app;
+}
+
+function startServer(port = Number(process.env.PORT) || 3000, host = process.env.HOST || '127.0.0.1') {
+  const app = createApp();
+  const server = app.listen(port, host, () => {
+    const address = server.address();
+    console.log(`GitHub Pages Web Editor running at http://${host}:${address.port}`);
+  });
+  return server;
+}
+
+if (require.main === module) startServer();
+
+module.exports = { createApp, startServer };
