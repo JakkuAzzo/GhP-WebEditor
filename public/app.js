@@ -27,6 +27,8 @@ const AppState = {
     selectedGuiElement: null,
     fileCache: {},
     assetCache: {},
+    pendingImport: null,
+    workspaceRevision: null,
     lastBroadcast: 0,
     uiTheme: localStorage.getItem('uiTheme') || 'dark',
     codeTheme: localStorage.getItem('codeTheme') || 'monokai',
@@ -211,6 +213,7 @@ function initializeEditor() {
         if (AppState.currentFile) {
             AppState.currentFile.content = AppState.editor.getValue();
             AppState.currentFile.modified = true;
+            updatePublishButton();
             document.getElementById('fileStatus').textContent = 'Unsaved';
             updateCurrentTab();
             if (AppState.suppressBroadcast) {
@@ -305,12 +308,18 @@ function selectGuiElement(element) {
     if (AppState.selectedGuiElement) AppState.selectedGuiElement.classList.remove('gui-selected');
     AppState.selectedGuiElement = element;
     element?.classList.add('gui-selected');
+    document.querySelectorAll('#guiCanvas [aria-selected="true"]').forEach(node => node.setAttribute('aria-selected', 'false'));
+    if (element) element.setAttribute('aria-selected', 'true');
 }
 
 function prepareGuiCanvas() {
     const canvas = document.getElementById('guiCanvas');
     selectGuiElement(null);
-    [...canvas.children].forEach(element => element.setAttribute('draggable', 'true'));
+    [...canvas.children].forEach((element, index) => {
+        if (!element.dataset.gid) element.dataset.gid = `gui-${Date.now()}-${index}`;
+        element.setAttribute('draggable', 'true');
+        element.setAttribute('aria-selected', 'false');
+    });
 }
 
 function moveSelectedGuiElement(direction) {
@@ -335,6 +344,8 @@ function cleanGuiCanvasHtml() {
     clone.querySelectorAll('.gui-selected').forEach(element => element.classList.remove('gui-selected'));
     clone.querySelectorAll('[draggable]').forEach(element => element.removeAttribute('draggable'));
     clone.querySelectorAll('[contenteditable]').forEach(element => element.removeAttribute('contenteditable'));
+    clone.querySelectorAll('[aria-selected]').forEach(element => element.removeAttribute('aria-selected'));
+    clone.querySelectorAll('[data-gid]').forEach(element => element.removeAttribute('data-gid'));
     return clone.innerHTML;
 }
 
@@ -379,6 +390,27 @@ function setupEventListeners() {
     document.getElementById('togglePreviewPane').addEventListener('click', togglePreview);
     document.getElementById('deleteFileBtn').addEventListener('click', deleteCurrentFile);
     document.getElementById('downloadBtn').addEventListener('click', downloadProject);
+    const importButton = document.getElementById('importBtn');
+    importButton.addEventListener('click', () => document.getElementById('importFileInput').click());
+    importButton.addEventListener('dragover', event => { event.preventDefault(); importButton.classList.add('drag-over'); });
+    importButton.addEventListener('dragleave', () => importButton.classList.remove('drag-over'));
+    importButton.addEventListener('drop', event => {
+        event.preventDefault();
+        importButton.classList.remove('drag-over');
+        const file = [...(event.dataTransfer?.files || [])].find(candidate => /\.zip$/i.test(candidate.name));
+        if (file) prepareZipImport(file);
+    });
+    document.getElementById('importFileInput').addEventListener('change', event => {
+        const file = event.target.files?.[0];
+        event.target.value = '';
+        if (file) prepareZipImport(file);
+    });
+    document.getElementById('cancelImportBtn').addEventListener('click', () => {
+        AppState.pendingImport = null;
+        document.getElementById('importModal').classList.remove('active');
+    });
+    document.getElementById('confirmImportBtn').addEventListener('click', applyZipImport);
+    document.getElementById('publishBtn').addEventListener('click', publishWorkspaceBatch);
 
     document.getElementById('repoSelect').addEventListener('change', e => {
         if (e.target.value === '__install__') {
@@ -555,11 +587,19 @@ function updateWorkspaceBadge(label) {
     }
 }
 
+function updatePublishButton() {
+    const button = document.getElementById('publishBtn');
+    if (button) button.disabled = !(AppState.githubAuthenticated && AppState.currentRepo && AppState.files.some(file => file.imported || file.modified || file.isNew));
+}
+
 async function fetchFileContent(file) {
     if (Object.prototype.hasOwnProperty.call(AppState.fileCache, file.path)) {
         return AppState.fileCache[file.path];
     }
-    if (file.content) return file.content;
+    if (typeof file.content === 'string') return file.content;
+    if (file.bytes) {
+        try { return new TextDecoder().decode(file.bytes); } catch { return ''; }
+    }
     if (file.cloneId) {
         try {
             const params = new URLSearchParams({ path: file.path });
@@ -609,6 +649,7 @@ async function fetchFileAsset(file) {
 }
 
 async function fetchFileBase64(file) {
+    if (file.bytes instanceof Uint8Array) return bytesToBase64(file.bytes);
     if (typeof file.content === 'string') return utf8ToBase64(file.content);
     if (file.cloneId) {
         const params = new URLSearchParams({ path: file.path, encoding: 'base64' });
@@ -633,6 +674,14 @@ async function fetchFileBase64(file) {
 function base64ToBytes(content) {
     const binary = atob(content);
     return Uint8Array.from(binary, character => character.charCodeAt(0));
+}
+
+function bytesToBase64(bytes) {
+    let binary = '';
+    for (let index = 0; index < bytes.length; index += 0x8000) {
+        binary += String.fromCharCode(...bytes.subarray(index, index + 0x8000));
+    }
+    return btoa(binary);
 }
 
 function showModal(id) {
@@ -771,6 +820,7 @@ async function loadRepository(repoFullName) {
         renderFileTree();
         saveStateToLocalStorage();
         loadPagesStatus(repoFullName);
+        updatePublishButton();
     } catch (error) {
         console.error('Failed to load repository contents:', error);
         alert('Failed to load repository contents');
@@ -1243,6 +1293,7 @@ async function saveCurrentFile() {
         if (index !== -1) AppState.files[index] = file;
         PluginManager.runHook('onFileSave', { file });
         renderTabs();
+        updatePublishButton();
     } catch (error) {
         file.modified = true;
         document.getElementById('fileStatus').textContent = 'Save failed';
@@ -1406,6 +1457,124 @@ async function downloadProject() {
     }
 }
 
+const IMPORT_MAX_ARCHIVE = 25 * 1024 * 1024;
+const IMPORT_MAX_TOTAL = 50 * 1024 * 1024;
+const IMPORT_MAX_ENTRIES = 10000;
+
+function normalizeArchivePath(value) {
+    if (typeof value !== 'string' || !value || value.includes('\\') || value.includes('\0')) throw new Error('Invalid archive path');
+    const normalized = value.replace(/^\.\//, '');
+    if (normalized.startsWith('/') || normalized === '..' || normalized.startsWith('../') || normalized.split('/').includes('..')) throw new Error(`Unsafe archive path: ${value}`);
+    if (normalized === '.git' || normalized.startsWith('.git/')) throw new Error('Archives must not contain .git');
+    return normalized;
+}
+
+function isTextPath(filePath) {
+    return /\.(html?|css|js|mjs|cjs|json|md|txt|xml|svg|ya?ml|toml|csv)$/i.test(filePath);
+}
+
+async function prepareZipImport(file) {
+    const summary = document.getElementById('importSummary');
+    const manifest = document.getElementById('importManifest');
+    const confirm = document.getElementById('confirmImportBtn');
+    summary.textContent = 'Reading archive…';
+    manifest.replaceChildren();
+    confirm.disabled = true;
+    showModal('importModal');
+    try {
+        if (file.size > IMPORT_MAX_ARCHIVE) throw new Error('ZIP is larger than 25 MB');
+        const archive = fflate.unzipSync(new Uint8Array(await file.arrayBuffer()));
+        const entries = [];
+        let total = 0;
+        for (const [rawPath, bytes] of Object.entries(archive)) {
+            const path = normalizeArchivePath(rawPath);
+            if (!path || path.endsWith('/') || (bytes.length === 0 && !/\.[^/]+$/.test(path))) continue;
+            if (entries.length >= IMPORT_MAX_ENTRIES) throw new Error('ZIP contains too many files');
+            total += bytes.length;
+            if (total > IMPORT_MAX_TOTAL) throw new Error('Uncompressed ZIP contents exceed 50 MB');
+            entries.push({ path, bytes, text: isTextPath(path) });
+        }
+        if (!entries.length) throw new Error('ZIP contains no files');
+        const existing = new Set(AppState.files.filter(item => item.type === 'file').map(item => item.path));
+        const collisions = entries.filter(item => existing.has(item.path)).length;
+        summary.textContent = `${entries.length} files · ${(total / 1024).toFixed(1)} KB · ${collisions} existing paths will be replaced`;
+        entries.slice(0, 300).forEach(entry => appendTextMessage(manifest, `${existing.has(entry.path) ? '↻' : '+'} ${entry.path}`, 'commit-item'));
+        if (entries.length > 300) appendTextMessage(manifest, `…and ${entries.length - 300} more`, 'hint');
+        AppState.pendingImport = { entries };
+        confirm.disabled = false;
+    } catch (error) {
+        AppState.pendingImport = null;
+        summary.textContent = `Import rejected: ${error.message}`;
+    }
+}
+
+function applyZipImport() {
+    const pending = AppState.pendingImport;
+    if (!pending) return;
+    if (AppState.files.some(file => file.modified) && !confirm('You have unsaved edits. Replace the workspace anyway?')) return;
+    AppState.files = pending.entries.map(entry => ({
+        name: entry.path.split('/').pop(), path: entry.path, type: 'file', bytes: entry.bytes,
+        content: entry.text ? new TextDecoder().decode(entry.bytes) : null, isNew: true, imported: true
+    }));
+    const publishingRepo = AppState.currentRepo;
+    AppState.currentCloneId = null;
+    if (!publishingRepo) AppState.currentBranch = 'local';
+    AppState.fileCache = {};
+    AppState.assetCache = {};
+    AppState.openTabs = [];
+    AppState.currentFile = null;
+    document.getElementById('editorWrapper').style.display = 'none';
+    document.getElementById('welcomeScreen').style.display = 'flex';
+    AppState.pendingImport = null;
+    document.getElementById('importModal').classList.remove('active');
+    updateWorkspaceBadge('Imported ZIP');
+    refreshFileStructure();
+    renderFileTree();
+    saveStateToLocalStorage();
+    updatePublishButton();
+}
+
+async function publishWorkspaceBatch() {
+    if (!AppState.githubAuthenticated || !AppState.currentRepo) {
+        alert('Connect to GitHub and select the target repository first.');
+        return;
+    }
+    const candidates = AppState.files.filter(file => file.type === 'file' && (file.imported || file.modified || file.isNew));
+    if (!candidates.length) { alert('There are no imported or unsaved files to publish.'); return; }
+    const summary = candidates.map(file => file.path).join('\n');
+    if (!confirm(`Publish ${candidates.length} file(s) to ${AppState.currentRepo} on ${AppState.currentBranch}?\n\n${summary.slice(0, 1800)}`)) return;
+    const button = document.getElementById('publishBtn');
+    button.disabled = true;
+    button.textContent = 'Publishing…';
+    try {
+        const changes = [];
+        for (const file of candidates) {
+            const content = await fetchFileBase64(file);
+            if (!content) throw new Error(`Unable to read ${file.path}`);
+            changes.push({ path: file.path, content, sha: file.sha });
+        }
+        const response = await fetch(`/api/github/repos/${AppState.currentRepo}/batch`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ branch: AppState.currentBranch, message: `Publish ${candidates.length} workspace file(s)`, changes })
+        });
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(body.error || body.message || 'Batch publish failed');
+        candidates.forEach(file => { file.imported = false; file.modified = false; file.isNew = false; file.baseContent = file.content || ''; });
+        AppState.lastGitHubCommitSha = body.sha || body.commit?.sha || null;
+        document.getElementById('fileStatus').textContent = 'Published';
+        updatePublishButton();
+        await loadRepository(AppState.currentRepo);
+        alert(`Published commit ${String(AppState.lastGitHubCommitSha || '').slice(0, 7)}.`);
+    } catch (error) {
+        alert(`Publish failed: ${error.message}`);
+        updatePublishButton();
+    } finally {
+        button.disabled = false;
+        button.innerHTML = '<i class="fas fa-cloud-upload-alt"></i> Publish';
+        updatePublishButton();
+    }
+}
+
 async function bulkDeleteSelected() {
     if (!AppState.selectedFiles.size) {
         alert('Select files first');
@@ -1467,14 +1636,16 @@ async function bulkDownloadSelected() {
     for (const path of AppState.selectedFiles) {
         const file = AppState.files.find(f => f.path === path);
         if (!file || file.type === 'dir') continue;
-        const content = await fetchFileContent(file);
-        bundle[path] = content;
+        const base64 = await fetchFileBase64(file);
+        if (base64) bundle[path] = base64ToBytes(base64);
     }
-    const dataStr = JSON.stringify(bundle, null, 2);
+    if (!Object.keys(bundle).length) { alert('No files selected'); return; }
+    const archive = fflate.zipSync(bundle, { level: 6 });
     const link = document.createElement('a');
-    link.href = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
-    link.download = 'selected-files.json';
+    link.href = URL.createObjectURL(new Blob([archive], { type: 'application/zip' }));
+    link.download = 'selected-files.zip';
     link.click();
+    setTimeout(() => URL.revokeObjectURL(link.href), 1000);
 }
 
 function openSearchModal() {

@@ -120,3 +120,32 @@ test('GitHub upstream failures return a generic error without leaking internal d
   assert.equal(body, '{"error":"Internal server error"}');
   assert.doesNotMatch(body, /private upstream detail|server-only-token/);
 });
+
+test('batch publish creates blobs, one tree, one commit, and updates the branch', async t => {
+  const calls = [];
+  const githubSessions = new Map([['fixture-session', {
+    accessToken: 'server-only-token', createdAt: Date.now(), repositoriesAt: Date.now(),
+    repositories: [{ full_name: 'fixture/site' }], allowedRepositories: new Set(['fixture/site'])
+  }]]);
+  const githubFetch = async (url, options = {}) => {
+    calls.push({ url, options });
+    if (url.endsWith('/git/ref/heads/main')) return Response.json({ object: { sha: 'head-sha' } });
+    if (url.endsWith('/git/commits/head-sha')) return Response.json({ tree: { sha: 'base-tree' } });
+    if (url.endsWith('/git/blobs')) return Response.json({ sha: 'blob-sha' });
+    if (url.endsWith('/git/trees')) return Response.json({ sha: 'new-tree' });
+    if (url.endsWith('/git/commits')) return Response.json({ sha: 'new-commit' });
+    if (url.endsWith('/git/refs/heads/main')) return Response.json({ ref: 'refs/heads/main' });
+    return Response.json({ message: 'unexpected' }, { status: 404 });
+  };
+  const server = createApp({ githubConfig: { clientId: 'client-id', clientSecret: 'client-secret', slug: 'fixture-editor' }, githubSessions, githubFetch }).listen(0, '127.0.0.1');
+  await new Promise(resolve => server.once('listening', resolve));
+  t.after(() => new Promise(resolve => server.close(resolve)));
+  const response = await fetch(`http://127.0.0.1:${server.address().port}/api/github/repos/fixture/site/batch`, {
+    method: 'POST', headers: { cookie: 'ghp_session=fixture-session', 'content-type': 'application/json' },
+    body: JSON.stringify({ branch: 'main', message: 'Publish archive', changes: [{ path: 'index.html', content: Buffer.from('<h1>ok</h1>').toString('base64') }] })
+  });
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).ref, 'refs/heads/main');
+  assert.equal(calls.filter(call => call.options.method === 'POST').length, 3);
+  assert.equal(calls.at(-1).options.method, 'PATCH');
+});

@@ -1,4 +1,5 @@
 const { test, expect } = require('@playwright/test');
+const { zipSync, strToU8 } = require('fflate');
 
 async function editorContent(page) {
   return page.evaluate(() => document.querySelector('.CodeMirror').CodeMirror.getValue());
@@ -177,4 +178,20 @@ test('stacks landing controls cleanly on narrow screens', async ({ page }) => {
   expect(mobileLayout.secondaryRows).toBe(mobileLayout.secondaryButtonCount);
   await expect(page.locator('#githubConnectBtn')).toBeInViewport();
   await expect(page.locator('#togglePreviewPane')).toBeInViewport();
+});
+
+test('imports a validated ZIP and preserves binary assets in the workspace', async ({ page }) => {
+  const archive = zipSync({
+    'index.html': strToU8('<h1>Imported</h1>'),
+    'assets/pixel.bin': new Uint8Array([0, 255, 1, 2])
+  });
+  await page.goto('./');
+  await page.setInputFiles('#importFileInput', { name: 'site.zip', mimeType: 'application/zip', buffer: Buffer.from(archive) });
+  await expect(page.locator('#importModal')).toHaveClass(/active/);
+  await expect(page.locator('#importSummary')).toContainText('files');
+  await page.click('#confirmImportBtn');
+  await expect(page.locator('#fileTree')).toContainText('index.html');
+  await expect(page.locator('#fileTree')).toContainText('pixel.bin');
+  await page.getByText('index.html', { exact: true }).click();
+  await expect.poll(() => page.evaluate(() => document.querySelector('.CodeMirror').CodeMirror.getValue())).toBe('<h1>Imported</h1>');
 });

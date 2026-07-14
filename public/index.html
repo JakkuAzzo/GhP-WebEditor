@@ -75,6 +75,13 @@
                     <button id="downloadBtn" class="btn btn-secondary">
                         <i class="fas fa-download"></i> Download
                     </button>
+                    <button id="importBtn" class="btn btn-secondary">
+                        <i class="fas fa-file-import"></i> Import ZIP
+                    </button>
+                    <button id="publishBtn" class="btn btn-primary" disabled>
+                        <i class="fas fa-cloud-upload-alt"></i> Publish
+                    </button>
+                    <input id="importFileInput" type="file" accept=".zip,application/zip" hidden>
                 </div>
                 <div id="userInfo" class="user-info" style="display: none;">
                     <img id="userAvatar" src="" alt="User Avatar">
@@ -435,6 +442,23 @@
             </div>
             <div class="modal-body">
                 <div id="diffContainer" class="diff-container"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="importModal" class="modal">
+        <div class="modal-content large">
+            <div class="modal-header">
+                <h2>Import ZIP</h2>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="importSummary" class="hint"></p>
+                <div id="importManifest" class="commit-list"></div>
+                <div class="editor-actions">
+                    <button id="cancelImportBtn" class="btn btn-ghost">Cancel</button>
+                    <button id="confirmImportBtn" class="btn btn-primary" disabled>Replace workspace</button>
+                </div>
             </div>
         </div>
     </div>

@@ -101,6 +101,37 @@
             return github(`${prefix}/contents/${contentPath}${suffix}`, options);
         }
         if (route.remainder === 'commits') return github(`${prefix}/commits${url.search}`, options);
+        if (route.remainder === 'batch' && options.method === 'POST') {
+            let payload;
+            try { payload = JSON.parse(options.body || '{}'); } catch { return json({ message: 'Invalid batch payload' }, 400); }
+            if (!payload || typeof payload.message !== 'string' || !payload.message.trim() || !Array.isArray(payload.changes) || payload.changes.length > 500) {
+                return json({ message: 'Invalid batch publish request' }, 400);
+            }
+            const branch = payload.branch || 'main';
+            const refResponse = await github(`${prefix}/git/ref/heads/${encodeURIComponent(branch)}`);
+            if (!refResponse.ok) return refResponse;
+            const ref = await refResponse.json();
+            const commitResponse = await github(`${prefix}/git/commits/${encodeURIComponent(ref.object.sha)}`);
+            if (!commitResponse.ok) return commitResponse;
+            const baseCommit = await commitResponse.json();
+            const treeEntries = [];
+            for (const change of payload.changes) {
+                if (!change || typeof change.path !== 'string' || typeof change.content !== 'string') return json({ message: 'Invalid batch file' }, 400);
+                const blobResponse = await github(`${prefix}/git/blobs`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: change.content, encoding: 'base64' }) });
+                if (!blobResponse.ok) return blobResponse;
+                const blob = await blobResponse.json();
+                treeEntries.push({ path: change.path, mode: '100644', type: 'blob', sha: blob.sha });
+            }
+            const treeResponse = await github(`${prefix}/git/trees`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ base_tree: baseCommit.tree.sha, tree: treeEntries }) });
+            if (!treeResponse.ok) return treeResponse;
+            const tree = await treeResponse.json();
+            const newCommitResponse = await github(`${prefix}/git/commits`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: payload.message.trim(), tree: tree.sha, parents: [ref.object.sha] }) });
+            if (!newCommitResponse.ok) return newCommitResponse;
+            const newCommit = await newCommitResponse.json();
+            const updateResponse = await github(`${prefix}/git/refs/heads/${encodeURIComponent(branch)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sha: newCommit.sha, force: false }) });
+            if (!updateResponse.ok) return updateResponse;
+            return json({ status: 'published', sha: newCommit.sha, commit: newCommit });
+        }
         return json({ message: 'Unsupported static API route' }, 404);
     }
 

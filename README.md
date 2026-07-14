@@ -112,8 +112,8 @@ a tabbed editor.
 4. **Edit and render:** Toggle between Code and GUI modes, then preview nested HTML,
 CSS, JavaScript modules, and local assets together.
 5. **Commit and review:** Saving a GitHub-backed file creates a commit on the loaded
-default branch. The Pages panel identifies the exact repository, source, deployment
-state, and published URL. Clone workspaces support local commits but not push.
+default branch. ZIP imports can be reviewed and published as one batch commit. The
+Pages panel identifies the exact repository, source, deployment state, and published URL.
 
 ## New: Clone from Git URL
 
@@ -136,13 +136,14 @@ Backend API (for integrations):
 - POST `/api/clone/:id/directory` with `{ path }` creates a directory
 - GET `/api/clone/:id/status` reports local Git changes
 - POST `/api/clone/:id/commit` creates a local commit
+- POST `/api/github/repos/:owner/:repo/batch` publishes a reviewed batch of base64 files
 
 Notes:
 
 - Clones are stored under the OS temp directory and are not persisted across restarts.
 - Files larger than 2MB are flagged as `tooLarge` and not inlined.
 - Clone files can be edited through the local API. Status and local commits are
-supported by the API; authenticated push is intentionally not implemented yet.
+supported by the API. GitHub-backed workspaces support atomic batch publishing.
 - For safety, clone URLs must use HTTPS and target an allowed host. The default
 hosts are GitHub, GitLab, and Bitbucket.
 
@@ -251,8 +252,11 @@ GitHub Actions or another build service.
 local image/font/media assets. Multi-page link navigation, service workers, server
 features, and framework-specific build behavior still require an acceptance pass
 against the deployed Pages URL.
-- Clone workspaces are temporary and local. They can be edited and committed, but
-authenticated push is not implemented.
+- Clone workspaces are temporary and local. They can be edited and committed locally;
+remote push still requires the GitHub-backed workspace flow.
+- ZIP import accepts archives up to 25MB (50MB uncompressed), rejects unsafe paths and
+`.git` content, and shows a manifest before replacing the workspace. Export preserves
+binary assets and selected-file exports are ZIP archives.
 
 ## License
 
