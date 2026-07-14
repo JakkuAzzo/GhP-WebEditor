@@ -46,32 +46,36 @@
                         </select>
                     </label>
                 </div>
-                <button id="commitHistoryBtn" class="btn btn-ghost">
-                    <i class="fas fa-history"></i>
-                    Commits
-                </button>
-                <button id="cloneChangesBtn" class="btn btn-ghost" style="display: none;">
-                    <i class="fas fa-code-branch"></i>
-                    Clone Changes
-                </button>
-                <button id="diffViewerBtn" class="btn btn-ghost">
-                    <i class="fas fa-not-equal"></i>
-                    Diff
-                </button>
-                <button id="pluginManagerBtn" class="btn btn-ghost" disabled title="Plugins require a future sandbox">
-                    <i class="fas fa-plug"></i>
-                    Plugins
-                </button>
-                <button id="copilotLoginBtn" class="btn btn-secondary">
-                    <i class="fab fa-github"></i>
-                    Experimental Copilot
-                </button>
-                <button id="githubConnectBtn" class="btn btn-primary">
-                    <i class="fab fa-github"></i> Connect GitHub
-                </button>
-                <button id="downloadBtn" class="btn btn-secondary">
-                    <i class="fas fa-download"></i> Download
-                </button>
+                <div class="header-actions header-actions-tools">
+                    <button id="commitHistoryBtn" class="btn btn-ghost">
+                        <i class="fas fa-history"></i>
+                        Commits
+                    </button>
+                    <button id="cloneChangesBtn" class="btn btn-ghost" style="display: none;">
+                        <i class="fas fa-code-branch"></i>
+                        Clone Changes
+                    </button>
+                    <button id="diffViewerBtn" class="btn btn-ghost">
+                        <i class="fas fa-not-equal"></i>
+                        Diff
+                    </button>
+                    <button id="pluginManagerBtn" class="btn btn-ghost" disabled title="Plugins require a future sandbox">
+                        <i class="fas fa-plug"></i>
+                        Plugins
+                    </button>
+                </div>
+                <div class="header-actions header-actions-primary">
+                    <button id="copilotLoginBtn" class="btn btn-secondary">
+                        <i class="fab fa-github"></i>
+                        Experimental Copilot
+                    </button>
+                    <button id="githubConnectBtn" class="btn btn-primary">
+                        <i class="fab fa-github"></i> Connect GitHub
+                    </button>
+                    <button id="downloadBtn" class="btn btn-secondary">
+                        <i class="fas fa-download"></i> Download
+                    </button>
+                </div>
                 <div id="userInfo" class="user-info" style="display: none;">
                     <img id="userAvatar" src="" alt="User Avatar">
                     <span id="userName"></span>

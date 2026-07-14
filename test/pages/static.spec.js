@@ -144,3 +144,37 @@ test('renders a self-contained site preview without a server preview endpoint', 
   expect(sameOriginApiRequests).toEqual([]);
   expect(consoleErrors).toEqual([]);
 });
+
+test('stacks landing controls cleanly on narrow screens', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('./');
+
+  const overflow = await page.evaluate(() => ({
+    viewport: document.documentElement.clientWidth,
+    document: document.documentElement.scrollWidth,
+    body: document.body.scrollWidth
+  }));
+
+  expect(overflow.document).toBeLessThanOrEqual(overflow.viewport);
+  expect(overflow.body).toBeLessThanOrEqual(overflow.viewport);
+
+  const mobileLayout = await page.evaluate(() => {
+    const primaryButtons = Array.from(document.querySelectorAll('.header-actions-primary .btn'));
+    const secondaryButtons = Array.from(document.querySelectorAll('.secondary-actions .btn'));
+    const primaryTops = [...new Set(primaryButtons.map(button => button.getBoundingClientRect().top))];
+    const secondaryTops = [...new Set(secondaryButtons.map(button => button.getBoundingClientRect().top))];
+
+    return {
+      primaryButtonCount: primaryButtons.length,
+      secondaryButtonCount: secondaryButtons.length,
+      primaryRows: primaryTops.length,
+      secondaryRows: secondaryTops.length
+    };
+  });
+
+  await expect(page.locator('.header')).toHaveCSS('flex-direction', 'column');
+  expect(mobileLayout.primaryRows).toBe(mobileLayout.primaryButtonCount);
+  expect(mobileLayout.secondaryRows).toBe(mobileLayout.secondaryButtonCount);
+  await expect(page.locator('#githubConnectBtn')).toBeInViewport();
+  await expect(page.locator('#togglePreviewPane')).toBeInViewport();
+});
