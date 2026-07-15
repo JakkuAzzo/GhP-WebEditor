@@ -19,6 +19,7 @@ fs.rmSync(output, { recursive: true, force: true });
 for (const file of ['index.html', 'app.js', 'styles.css', 'workspace-preview.js']) {
   copyFile(`public/${file}`, file);
 }
+if (fs.existsSync(path.join(root, 'public', 'assets'))) copyDirectory('public/assets', 'assets');
 copyFile('static/static-api.js', 'static-api.js');
 
 const codeMirrorFiles = [

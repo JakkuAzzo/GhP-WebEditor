@@ -159,25 +159,21 @@ test('stacks landing controls cleanly on narrow screens', async ({ page }) => {
   expect(overflow.document).toBeLessThanOrEqual(overflow.viewport);
   expect(overflow.body).toBeLessThanOrEqual(overflow.viewport);
 
-  const mobileLayout = await page.evaluate(() => {
-    const primaryButtons = Array.from(document.querySelectorAll('.header-actions-primary .btn'));
-    const secondaryButtons = Array.from(document.querySelectorAll('.secondary-actions .btn'));
-    const primaryTops = [...new Set(primaryButtons.map(button => button.getBoundingClientRect().top))];
-    const secondaryTops = [...new Set(secondaryButtons.map(button => button.getBoundingClientRect().top))];
-
-    return {
-      primaryButtonCount: primaryButtons.length,
-      secondaryButtonCount: secondaryButtons.length,
-      primaryRows: primaryTops.length,
-      secondaryRows: secondaryTops.length
-    };
-  });
-
   await expect(page.locator('.header')).toHaveCSS('flex-direction', 'column');
-  expect(mobileLayout.primaryRows).toBe(mobileLayout.primaryButtonCount);
-  expect(mobileLayout.secondaryRows).toBe(mobileLayout.secondaryButtonCount);
   await expect(page.locator('#githubConnectBtn')).toBeInViewport();
-  await expect(page.locator('#togglePreviewPane')).toBeInViewport();
+  await expect(page.locator('#welcomeScreen')).toContainText('Build, edit, and publish');
+  await expect(page.locator('#welcomeImportZip')).toBeInViewport();
+  await expect(page.locator('.theme-selectors')).toBeHidden();
+  await expect(page.locator('.secondary-toolbar')).toBeHidden();
+});
+
+test('explains fine-grained GitHub token setup from the welcome guide', async ({ page }) => {
+  await page.goto('./');
+  await page.click('#welcomeGitHubGuide');
+  await expect(page.locator('#githubAuthModal')).toHaveClass(/active/);
+  await expect(page.locator('#staticGithubCredentials')).toContainText('Contents: Read and write');
+  await expect(page.locator('#staticGithubCredentials')).toContainText('Pages: Read-only');
+  await expect(page.locator('#staticGithubCredentials')).toContainText('never saved');
 });
 
 test('imports a validated ZIP and preserves binary assets in the workspace', async ({ page }) => {

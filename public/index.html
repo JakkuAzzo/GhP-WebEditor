@@ -170,40 +170,46 @@
                 <div class="editor-tabs" id="editorTabs"></div>
                 <div class="editor-container">
                     <div id="welcomeScreen" class="welcome-screen">
-                        <div class="welcome-content">
-                            <i class="fas fa-code"></i>
-                            <h2>Welcome to GitHub Pages Web Editor</h2>
-                            <p>Edit locally, work with GitHub repositories, or use a temporary clone workspace.</p>
-                            <div class="features">
-                                <div class="feature">
-                                    <i class="fas fa-route"></i>
-                                    <h3>Advanced Navigation</h3>
-                                    <p>Nested folders, breadcrumbs, search, and bulk operations.</p>
+                        <div class="welcome-content welcome-workbench">
+                            <div class="welcome-hero-copy">
+                                <p class="welcome-eyebrow"><i class="fas fa-sparkles"></i> Build from your repository</p>
+                                <h2>Build, edit, and publish your GitHub Pages site.</h2>
+                                <p class="welcome-lede">A friendly workspace for changing real website files, seeing the result instantly, and publishing with confidence.</p>
+                                <div class="actions welcome-primary-actions">
+                                    <button id="connectGithub" class="btn btn-large btn-primary">
+                                        <i class="fab fa-github"></i> Connect GitHub
+                                    </button>
+                                    <button id="createNewFile" class="btn btn-large btn-ghost">
+                                        <i class="fas fa-plus"></i> Start locally
+                                    </button>
                                 </div>
-                                <div class="feature">
-                                    <i class="fas fa-object-group"></i>
-                                    <h3>GUI + Code Modes</h3>
-                                    <p>Drag-and-drop layout builder backed by CodeMirror.</p>
-                                </div>
-                                <div class="feature">
-                                    <i class="fas fa-users"></i>
-                                    <h3>Same-origin Tab Sync</h3>
-                                    <p>Broadcast changes between tabs in this browser origin.</p>
-                                </div>
-                                <div class="feature">
-                                    <i class="fas fa-plug"></i>
-                                    <h3>Security-first Preview</h3>
-                                    <p>Preview project content inside an isolated sandbox.</p>
-                                </div>
+                                <button id="welcomeImportZip" class="welcome-text-action"><i class="fas fa-file-import"></i> Or import an existing site ZIP</button>
                             </div>
-                            <div class="actions">
-                                <button id="createNewFile" class="btn btn-large btn-primary">
-                                    <i class="fas fa-plus"></i> Create New File
-                                </button>
-                                <button id="connectGithub" class="btn btn-large btn-secondary">
-                                    <i class="fab fa-github"></i> Connect to GitHub
-                                </button>
+                            <div class="welcome-visual" aria-label="Code editor and responsive website preview">
+                                <img src="assets/onboarding-aurora-workbench.png" alt="Illustrated preview of editing a GitHub Pages website in code and on desktop and mobile" loading="eager">
                             </div>
+                            <section class="welcome-security" aria-labelledby="securityHeading">
+                                <div class="security-icon"><i class="fas fa-shield-halved"></i></div>
+                                <div>
+                                    <h3 id="securityHeading">Your access stays under your control</h3>
+                                    <p>Choose only the repositories this editor may access. The GitHub Pages edition uses a fine-grained token stored only in this tab.</p>
+                                </div>
+                                <button id="welcomeGitHubGuide" class="btn btn-small btn-ghost">GitHub setup guide <i class="fas fa-arrow-right"></i></button>
+                            </section>
+                            <section class="welcome-steps" aria-label="Get started in three steps">
+                                <article class="welcome-step">
+                                    <span>1</span><i class="fas fa-lock"></i>
+                                    <h3>Connect securely</h3><p>Sign in, or create a fine-grained token for the Pages edition.</p>
+                                </article>
+                                <article class="welcome-step">
+                                    <span>2</span><i class="fas fa-folder-tree"></i>
+                                    <h3>Choose a repository</h3><p>Select the site you want to work on—nothing else is changed.</p>
+                                </article>
+                                <article class="welcome-step">
+                                    <span>3</span><i class="fas fa-rocket"></i>
+                                    <h3>Edit and publish</h3><p>Use code or visual editing, preview safely, then publish your update.</p>
+                                </article>
+                            </section>
                         </div>
                     </div>
                     <div id="editorWrapper" class="editor-wrapper" style="display: none;">
@@ -298,8 +304,13 @@
                     <p>GitHub will show the app's requested permissions before you approve them. Credentials remain in an HTTP-only local session and are never exposed to the editor page.</p>
                 </div>
                 <div id="staticGithubCredentials" hidden>
-                    <p>This GitHub Pages edition has no credential server. Create a fine-grained token with access only to the repositories you want to edit, <strong>Contents: read and write</strong>, and optionally <strong>Pages: read</strong>.</p>
-                    <p><a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener noreferrer">Create a fine-grained token on GitHub</a></p>
+                    <p>This GitHub Pages edition connects directly to GitHub. Create a fine-grained token with access only to the sites you want to edit.</p>
+                    <ol class="github-setup-list">
+                        <li><strong>Create a fine-grained token</strong> and choose <em>Only select repositories</em>.</li>
+                        <li>Under repository permissions, set <strong>Contents: Read and write</strong>. Add <strong>Pages: Read-only</strong> if you want deployment status in the editor.</li>
+                        <li>Generate the token, copy it once, then paste it below. It is never saved by this app.</li>
+                    </ol>
+                    <p><a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener noreferrer">Open GitHub’s fine-grained token page <i class="fas fa-arrow-up-right-from-square"></i></a></p>
                     <div class="form-group">
                         <label for="staticGithubToken">Fine-grained personal access token</label>
                         <input type="password" id="staticGithubToken" class="text-input" autocomplete="off" spellcheck="false" placeholder="github_pat_…">

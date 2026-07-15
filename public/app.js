@@ -390,6 +390,8 @@ function setupEventListeners() {
     document.getElementById('togglePreviewPane').addEventListener('click', togglePreview);
     document.getElementById('deleteFileBtn').addEventListener('click', deleteCurrentFile);
     document.getElementById('downloadBtn').addEventListener('click', downloadProject);
+    document.getElementById('welcomeImportZip').addEventListener('click', () => document.getElementById('importFileInput').click());
+    document.getElementById('welcomeGitHubGuide').addEventListener('click', showGitHubAuthModal);
     const importButton = document.getElementById('importBtn');
     importButton.addEventListener('click', () => document.getElementById('importFileInput').click());
     importButton.addEventListener('dragover', event => { event.preventDefault(); importButton.classList.add('drag-over'); });

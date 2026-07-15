@@ -501,30 +501,79 @@ body[data-theme="light"] .editor-area {
 .welcome-screen {
     flex: 1;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
-    padding: 20px;
+    padding: clamp(18px, 3vw, 42px);
     overflow: auto;
 }
 
-.features {
+.welcome-workbench {
+    width: min(1160px, 100%);
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 18px;
-    margin: 24px 0;
+    grid-template-columns: minmax(0, .9fr) minmax(280px, 1.1fr);
+    gap: clamp(20px, 4vw, 56px);
+    align-items: center;
+    padding: clamp(24px, 4vw, 52px);
+    border: 1px solid color-mix(in srgb, var(--border-dark) 78%, #7c5cff);
+    border-radius: 24px;
+    background: #091322;
+    box-shadow: 0 24px 80px rgba(0, 0, 0, .32);
+    position: relative;
+    isolation: isolate;
 }
 
-.actions {
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
+.welcome-hero-copy { max-width: 38rem; }
+.welcome-eyebrow {
+    color: #8dcaff;
+    font-size: .82rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    margin-bottom: 12px;
 }
+.welcome-hero-copy h2 {
+    font-size: clamp(2.1rem, 3.4vw, 3.6rem);
+    letter-spacing: -.045em;
+    line-height: 1.03;
+    max-width: 13ch;
+}
+.welcome-lede { margin-top: 18px; max-width: 36rem; color: #b7c6df; font-size: clamp(1rem, 1.5vw, 1.15rem); line-height: 1.65; }
+.welcome-primary-actions { margin-top: 28px; }
+.actions { display: flex; gap: 12px; flex-wrap: wrap; }
+.welcome-text-action { margin-top: 14px; background: transparent; border: 0; color: #b7c6df; cursor: pointer; font: inherit; text-decoration: underline; text-underline-offset: 4px; }
+.welcome-text-action:hover { color: #fff; }
+.welcome-visual { min-width: 0; }
+.welcome-visual img { width: 100%; display: block; border-radius: 16px; border: 1px solid rgba(164, 192, 255, .28); box-shadow: 0 18px 48px rgba(0, 0, 0, .4); }
+.welcome-security {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 16px;
+    align-items: center;
+    padding: 16px 18px;
+    border: 1px solid rgba(139, 182, 255, .26);
+    background: rgba(7, 18, 38, .76);
+    border-radius: 14px;
+}
+.security-icon { color: #83d8ff; font-size: 1.55rem; }
+.welcome-security h3 { font-size: 1rem; margin-bottom: 4px; }
+.welcome-security p { color: #aebcd2; font-size: .9rem; line-height: 1.45; }
+.welcome-steps { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; }
+.welcome-step { position: relative; padding: 4px 26px 6px 58px; min-height: 106px; }
+.welcome-step + .welcome-step { border-left: 1px solid rgba(152, 177, 214, .25); }
+.welcome-step span { position: absolute; left: 4px; top: 0; width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; background: #1e5eff; color: white; font-weight: 800; }
+.welcome-step > i { color: #b591ff; margin-bottom: 8px; }
+.welcome-step h3 { font-size: .98rem; margin-bottom: 5px; }
+.welcome-step p { color: #aebcd2; font-size: .86rem; line-height: 1.45; }
 
-.feature {
-    border: 1px solid var(--border-dark);
-    border-radius: 10px;
-    padding: 16px;
-    background: var(--bg-dark-elevated);
+body[data-theme="light"] .welcome-workbench { background-color: #0b1830; }
+.github-setup-list { margin: 14px 0 16px 22px; display: grid; gap: 10px; line-height: 1.45; }
+.github-setup-list strong { color: var(--primary); }
+
+@media (max-width: 1350px) {
+    .copilot-panel { display: none; }
+    .main-content { grid-template-columns: 280px minmax(0, 1fr); }
+}
 }
 
 .btn,
@@ -887,13 +936,15 @@ textarea.text-input {
         padding: 16px 14px 28px;
     }
 
-    .features {
-        grid-template-columns: 1fr;
-    }
-
-    .feature {
-        padding: 14px;
-    }
+    .welcome-workbench { grid-template-columns: 1fr; padding: 22px; border-radius: 18px; }
+    .welcome-hero-copy h2 { max-width: 14ch; }
+    .welcome-visual { order: initial; }
+    .welcome-security { grid-template-columns: auto 1fr; }
+    .welcome-security .btn { grid-column: 1 / -1; width: 100%; justify-content: center; }
+    .welcome-steps { grid-template-columns: 1fr; gap: 14px; }
+    .welcome-step { padding: 4px 0 4px 54px; min-height: auto; }
+    .welcome-step + .welcome-step { border-left: 0; border-top: 1px solid rgba(152, 177, 214, .25); padding-top: 18px; }
+    .welcome-step + .welcome-step span { top: 18px; }
 
     .select-input.small {
         min-width: 0;
@@ -918,9 +969,26 @@ textarea.text-input {
     }
 
     .header-left h1 {
-        font-size: 1.55rem;
+        font-size: 1.2rem;
         line-height: 1.15;
     }
+
+    .header { gap: 10px; padding-block: 12px; }
+    .header-right { flex: none; min-width: 0; }
+    .tagline { font-size: .74rem; }
+    .theme-selectors,
+    .header-actions-tools,
+    .secondary-toolbar,
+    .header-actions-primary #copilotLoginBtn,
+    .header-actions-primary #downloadBtn,
+    .header-actions-primary #importBtn,
+    .header-actions-primary #publishBtn { display: none; }
+    .header-actions-primary { display: block; }
+    .header-actions-primary #githubConnectBtn { width: 100%; justify-content: center; }
+    .welcome-screen { padding: 14px; }
+    .welcome-workbench { padding: 16px; gap: 22px; }
+    .welcome-hero-copy h2 { font-size: 2.15rem; }
+    .welcome-primary-actions { grid-template-columns: 1fr; margin-top: 20px; }
 
     .breadcrumbs {
         width: 100%;
@@ -934,4 +1002,8 @@ textarea.text-input {
     .collab-info span {
         width: 100%;
     }
+}
+
+@media (max-width: 1350px) {
+    .copilot-panel { display: none; }
 }
