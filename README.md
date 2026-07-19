@@ -1,30 +1,28 @@
-# GhP-WebEditor
+# GhP WebEditor
 
-A web-first GitHub Pages editor currently under active development. It combines
-folder navigation, multi-file operations, GitHub-backed editing, local clone
-workspaces, same-origin tab synchronisation, and an experimental visual editor.
+GhP WebEditor helps people edit GitHub Pages sites with code or visual tools,
+preview the result, and open a review pull request in a repository they own or
+manage. It also provides a local desktop workspace for ZIP-based editing.
 
-> **Project status:** pre-release. The browser application is the supported MVP
-> target. Electron, Copilot, collaboration, and visual editing remain experimental.
-> Third-party plugins are disabled until they can run inside a security sandbox.
+> **Release model:** GitHub Pages hosts the public product site; the Railway web
+> app is the supported GitHub-connected editor; macOS and Windows desktop builds
+> are local/ZIP-first. Copilot, collaboration, and visual editing remain
+> experimental. Third-party plugins are disabled until they have a security sandbox.
 
-## GitHub Pages edition
+## GitHub Pages product site
 
-The `github-pages-static` branch builds a browser-only edition that runs entirely
+The `github-pages-static` branch builds the public product site that runs entirely
 from GitHub Pages. There is no application server, GitHub App secret, database, or
-server session at runtime. The static edition:
+server session at runtime. The static site:
 
-- authenticates with a user-created **fine-grained personal access token**;
-- keeps that token only in the current tab's JavaScript memory;
-- calls `https://api.github.com` directly;
-- lists and edits repositories available to the token;
-- creates, updates, and deletes files through GitHub's Contents API;
-- renders previews locally in a sandboxed iframe; and
-- disables server-only Git cloning and local Git commits.
+- deliberately does **not** accept GitHub credentials or personal access tokens;
+- explains the secure review-PR workflow, links to releases, and accepts feedback;
+- keeps the project inbox address out of page source by using FormSubmit's endpoint
+  token; and
+- directs GitHub-connected work to the hosted editor.
 
-Create the token with access only to the intended repositories, **Contents: read
-and write**, and optionally **Pages: read**. Reloading or closing the tab clears it.
-Do not use a classic token unless there is no viable fine-grained alternative.
+GitHub Pages paths on the same account share a browser origin, so a bearer-token
+editor is unsafe there. Use the Railway-hosted editor for GitHub publishing.
 
 To build and test this edition locally:
 
@@ -64,7 +62,7 @@ render the complete HTML/CSS/JavaScript workspace in an isolated preview.
 
 ## Installation
 
-### Option 0: Deploy the static GitHub Pages edition
+### Option 0: Deploy the static GitHub Pages product site
 
 Use the `github-pages-static` branch and its Pages workflow as described above. The
 generated `dist/` directory is a build artifact and is intentionally not committed.
@@ -100,20 +98,23 @@ npm install
 npm run electron
 ```
 
+The desktop app supports local file and ZIP workflows. Set `GHP_WEB_APP_URL` when
+building it to make its GitHub action open the hosted editor.
+
 ## Usage Overview
 
-1. **Connect to GitHub:** The server edition signs in through a configured GitHub
-App. The Pages edition accepts a memory-only fine-grained token whose repository
-selection is configured on GitHub.
+1. **Connect to GitHub:** In the hosted web editor, the user signs in to
+their own GitHub account and installs the GitHub App for only the repositories they
+select. The app never receives a personal access token in the browser.
 2. **Navigate:** Use the left sidebar’s breadcrumbs, search, and folder inspector to
 move through large projects.
 3. **Open Files:** Multi-select items for bulk actions or open files individually in
 a tabbed editor.
 4. **Edit and render:** Toggle between Code and GUI modes, then preview nested HTML,
 CSS, JavaScript modules, and local assets together.
-5. **Commit and review:** Saving a GitHub-backed file creates a commit on the loaded
-default branch. ZIP imports can be reviewed and published as one batch commit. The
-Pages panel identifies the exact repository, source, deployment state, and published URL.
+5. **Create a review PR:** GitHub-backed changes are committed to a new
+`ghp-review/*` branch and opened as a pull request against the selected branch. The
+repository owner reviews and merges it from their own GitHub account before Pages deploys.
 
 ## New: Clone from Git URL
 
@@ -136,7 +137,8 @@ Backend API (for integrations):
 - POST `/api/clone/:id/directory` with `{ path }` creates a directory
 - GET `/api/clone/:id/status` reports local Git changes
 - POST `/api/clone/:id/commit` creates a local commit
-- POST `/api/github/repos/:owner/:repo/batch` publishes a reviewed batch of base64 files
+- POST `/api/github/repos/:owner/:repo/batch` with `review: true` creates a review
+  branch and pull request for a reviewed batch of base64 files
 
 Notes:
 
@@ -197,17 +199,11 @@ is stored only in the loopback server's bounded in-memory session and the browse
 receives an HTTP-only session cookie. Copilot credentials remain page-memory-only.
 
 Configure a GitHub App with **Contents: read and write** and **Pages: read**, request
-user authorization during installation, and use these local URLs:
-
-- Callback URL: `http://127.0.0.1:3000/api/auth/github/callback`
-- Setup URL: `http://127.0.0.1:3000/api/auth/github/setup`
-
-Then export `GITHUB_APP_CLIENT_ID`, `GITHUB_APP_CLIENT_SECRET`, and
-`GITHUB_APP_SLUG` before starting the editor. Set `GITHUB_APP_CALLBACK_URL` to the
-registered HTTPS callback when deploying anywhere other than the default loopback
-server. GitHub's installation UI lets each user
-grant all repositories or only selected repositories. Use equivalent HTTPS URLs for
-a non-local deployment.
+user authorization during installation, and use the Railway HTTPS callback and setup
+URLs. Export `GITHUB_APP_CLIENT_ID`, `GITHUB_APP_CLIENT_SECRET`, `GITHUB_APP_SLUG`,
+`GITHUB_APP_CALLBACK_URL`, and `GHP_WEB_APP_URL` before starting the hosted editor.
+GitHub's installation UI lets each user grant all repositories or only selected
+repositories. See [production deployment](docs/DEPLOYMENT.md) for the exact setup.
 
 ## Project Structure
 
@@ -241,10 +237,9 @@ GhP-WebEditor/
 
 ## Current limits
 
-- The supported publishing path is a static GitHub Pages repository whose Pages
-source branch is already configured. The editor saves files to that branch and shows
-the latest Pages build and published URL; it does not change Pages settings or poll a
-deployment continuously until completion.
+- The supported publishing path uses the hosted editor with a configured
+  GitHub App. The user owns the selected repository and pull request; the app creates
+  a review branch and does not merge or alter Pages settings automatically.
 - It does not run Jekyll, npm, bundlers, or framework-specific production builds for
 the edited project. Sites requiring a build pipeline must keep that pipeline in
 GitHub Actions or another build service.
@@ -255,8 +250,11 @@ against the deployed Pages URL.
 - Clone workspaces are temporary and local. They can be edited and committed locally;
 remote push still requires the GitHub-backed workspace flow.
 - ZIP import accepts archives up to 25MB (50MB uncompressed), rejects unsafe paths and
-`.git` content, and shows a manifest before replacing the workspace. Export preserves
-binary assets and selected-file exports are ZIP archives.
+  `.git` content, and shows a manifest before replacing the workspace. Export preserves
+  binary assets and selected-file exports are ZIP archives.
+- Railway intentionally runs one application replica for v1 because GitHub sessions
+  are held in memory. Restarting the service signs users out; a shared session store
+  is required before horizontal scaling.
 
 ## License
 
@@ -265,5 +263,7 @@ purchase is required for production use. See [LICENSE](LICENSE) for details.
 
 ## Support
 
-For licensing questions, feature requests, or support, contact the project maintainer
+For deployment, GitHub App, and signed-release setup, see
+[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). For feature requests or support, use the
+feedback form on the GitHub Pages product site or contact the project maintainer
 through the repository.

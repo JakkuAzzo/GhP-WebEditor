@@ -79,7 +79,7 @@
                         <i class="fas fa-file-import"></i> Import ZIP
                     </button>
                     <button id="publishBtn" class="btn btn-primary" disabled>
-                        <i class="fas fa-cloud-upload-alt"></i> Publish
+                        <i class="fas fa-code-branch"></i> Create review PR
                     </button>
                     <input id="importFileInput" type="file" accept=".zip,application/zip" hidden>
                 </div>
@@ -304,18 +304,7 @@
                     <p>GitHub will show the app's requested permissions before you approve them. Credentials remain in an HTTP-only local session and are never exposed to the editor page.</p>
                 </div>
                 <div id="staticGithubCredentials" hidden>
-                    <p>This GitHub Pages edition connects directly to GitHub. Create a fine-grained token with access only to the sites you want to edit.</p>
-                    <ol class="github-setup-list">
-                        <li><strong>Create a fine-grained token</strong> and choose <em>Only select repositories</em>.</li>
-                        <li>Under repository permissions, set <strong>Contents: Read and write</strong>. Add <strong>Pages: Read-only</strong> if you want deployment status in the editor.</li>
-                        <li>Generate the token, copy it once, then paste it below. It is never saved by this app.</li>
-                    </ol>
-                    <p><a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener noreferrer">Open GitHub’s fine-grained token page <i class="fas fa-arrow-up-right-from-square"></i></a></p>
-                    <div class="form-group">
-                        <label for="staticGithubToken">Fine-grained personal access token</label>
-                        <input type="password" id="staticGithubToken" class="text-input" autocomplete="off" spellcheck="false" placeholder="github_pat_…">
-                    </div>
-                    <p class="hint">The token stays only in this tab's memory, is sent directly to api.github.com, and is cleared on logout or reload.</p>
+                    <p>This browser-only Pages edition is for local files and ZIP import/export. To connect GitHub securely, use the hosted GhP WebEditor and sign in through the GitHub App.</p>
                 </div>
                 <button id="connectGithubSubmit" type="button" class="btn btn-primary">Continue with GitHub</button>
             </div>
@@ -540,6 +529,7 @@
     <script src="/lib/codemirror/addon/hint/anyword-hint.js"></script>
     <script src="/lib/codemirror/addon/search/searchcursor.js"></script>
     <script src="/lib/marked/lib/marked.umd.js"></script>
+    <script src="/lib/dompurify/purify.min.js"></script>
     <script src="/lib/fflate/umd/index.js"></script>
     <script src="workspace-preview.js"></script>
     <script src="app.js"></script>

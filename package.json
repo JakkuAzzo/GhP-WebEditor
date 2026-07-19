@@ -6,6 +6,9 @@
   "scripts": {
     "start": "node server.js",
     "electron": "electron .",
+    "dist": "electron-builder --publish never",
+    "dist:mac": "electron-builder --mac dmg zip --universal --publish never",
+    "dist:win": "electron-builder --win nsis --publish never",
     "build": "node scripts/verify-build.js",
     "build:pages": "node scripts/build-pages.js",
     "serve:pages": "node scripts/serve-pages.js",
@@ -30,14 +33,52 @@
   "dependencies": {
     "@fortawesome/fontawesome-free": "^7.1.0",
     "codemirror": "^5.65.16",
+    "dompurify": "^3.4.12",
     "express": "^4.18.2",
     "fflate": "^0.8.2",
+    "helmet": "^7.0.0",
     "marked": "^17.0.0",
-    "simple-git": "^3.24.0",
-    "helmet": "^7.0.0"
+    "simple-git": "^3.24.0"
+  },
+  "build": {
+    "appId": "com.jakkuazzo.ghpwebeditor",
+    "productName": "GhP WebEditor",
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "main.js",
+      "server.js",
+      "lib/**/*",
+      "public/**/*",
+      "package.json"
+    ],
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false
+    },
+    "dmg": {
+      "sign": false
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
   },
   "devDependencies": {
     "@playwright/test": "^1.55.0",
-    "electron": "^39.2.1"
+    "electron": "^39.2.1",
+    "electron-builder": "^26.15.3"
   }
 }

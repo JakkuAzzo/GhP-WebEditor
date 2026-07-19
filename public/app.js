@@ -35,6 +35,8 @@ const AppState = {
     suppressBroadcast: false
 };
 
+let hostedEditorUrl = null;
+
 const FILE_TEMPLATES = {
     blank: '',
     html: `<!DOCTYPE html>
@@ -695,22 +697,12 @@ function showGitHubAuthModal() {
 }
 
 async function connectToGitHub() {
-    if (window.GhpStaticApi) {
-        const button = document.getElementById('connectGithubSubmit');
-        const input = document.getElementById('staticGithubToken');
-        button.disabled = true;
-        button.textContent = 'Connecting…';
-        try {
-            await window.GhpStaticApi.connect(input.value);
-            input.value = '';
-            document.getElementById('githubAuthModal').classList.remove('active');
-            await authenticateWithGitHub();
-        } catch (error) {
-            alert(`GitHub connection failed: ${error.message}`);
-        } finally {
-            button.disabled = false;
-            button.textContent = 'Connect GitHub';
-        }
+    if (window.GhpStaticApi?.localOnly) {
+        alert('This GitHub Pages site is for local files and ZIP export. Open the hosted GhP WebEditor to sign in with GitHub and create a review pull request.');
+        return;
+    }
+    if (hostedEditorUrl) {
+        window.location.assign(hostedEditorUrl);
         return;
     }
     document.getElementById('githubAuthModal').classList.remove('active');
@@ -719,13 +711,29 @@ async function connectToGitHub() {
 
 async function authenticateWithGitHub() {
     try {
+        const runtimeResponse = await fetch('/api/runtime');
+        if (runtimeResponse.ok) {
+            const runtime = await runtimeResponse.json();
+            hostedEditorUrl = typeof runtime.hostedEditorUrl === 'string' && /^https:\/\//.test(runtime.hostedEditorUrl)
+                ? runtime.hostedEditorUrl
+                : null;
+        }
         const response = await fetch('/api/auth/github/status');
         if (!response.ok) throw new Error('Authentication status failed');
         const status = await response.json();
         if (!status.configured) {
             const connect = document.getElementById('githubConnectBtn');
-            connect.disabled = true;
-            connect.title = 'Configure GITHUB_APP_CLIENT_ID, GITHUB_APP_CLIENT_SECRET, and GITHUB_APP_SLUG';
+            if (hostedEditorUrl) {
+                connect.disabled = false;
+                connect.innerHTML = '<i class="fas fa-arrow-up-right-from-square"></i> Open web editor';
+                connect.title = 'GitHub publishing is available in the hosted web editor';
+                document.querySelectorAll('#connectGithub, #connectGithubSubmit').forEach(button => {
+                    button.innerHTML = '<i class="fas fa-arrow-up-right-from-square"></i> Open web editor';
+                });
+            } else {
+                connect.disabled = true;
+                connect.title = 'Configure GITHUB_APP_CLIENT_ID, GITHUB_APP_CLIENT_SECRET, and GITHUB_APP_SLUG';
+            }
             return;
         }
         if (!status.authenticated) return;
@@ -840,7 +848,7 @@ async function loadPagesStatus(repoFullName = AppState.currentRepo) {
     try {
         const response = await fetch(`/api/github/repos/${repoFullName}/pages/status`);
         if (response.status === 403) {
-            const credential = window.GhpStaticApi ? 'fine-grained token' : 'GitHub App';
+            const credential = 'GitHub App';
             panel.textContent = `Editing ${repoFullName} on ${AppState.currentBranch}. Grant the ${credential} Pages: read permission to verify deployment.`;
             return;
         }
@@ -1462,6 +1470,36 @@ async function downloadProject() {
 const IMPORT_MAX_ARCHIVE = 25 * 1024 * 1024;
 const IMPORT_MAX_TOTAL = 50 * 1024 * 1024;
 const IMPORT_MAX_ENTRIES = 10000;
+const IMPORT_MAX_ENTRY = 10 * 1024 * 1024;
+const IMPORT_MAX_RATIO = 100;
+
+function inspectZipArchive(bytes) {
+    // Validate the central directory before fflate allocates uncompressed data.
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    let eocd = -1;
+    for (let offset = Math.max(0, bytes.length - 65_557); offset <= bytes.length - 22; offset += 1) {
+        if (view.getUint32(offset, true) === 0x06054b50) eocd = offset;
+    }
+    if (eocd < 0) throw new Error('Invalid ZIP archive');
+    const entries = view.getUint16(eocd + 10, true);
+    const directorySize = view.getUint32(eocd + 12, true);
+    let offset = view.getUint32(eocd + 16, true);
+    if (entries > IMPORT_MAX_ENTRIES || offset + directorySize > bytes.length) throw new Error('ZIP directory exceeds import limits');
+    let total = 0;
+    for (let index = 0; index < entries; index += 1) {
+        if (offset + 46 > bytes.length || view.getUint32(offset, true) !== 0x02014b50) throw new Error('Invalid ZIP directory entry');
+        const compressed = view.getUint32(offset + 20, true);
+        const expanded = view.getUint32(offset + 24, true);
+        const nameLength = view.getUint16(offset + 28, true);
+        const extraLength = view.getUint16(offset + 30, true);
+        const commentLength = view.getUint16(offset + 32, true);
+        if (expanded > IMPORT_MAX_ENTRY || (compressed && expanded / compressed > IMPORT_MAX_RATIO)) throw new Error('ZIP entry exceeds safe expansion limits');
+        total += expanded;
+        if (total > IMPORT_MAX_TOTAL) throw new Error('Uncompressed ZIP contents exceed 50 MB');
+        offset += 46 + nameLength + extraLength + commentLength;
+    }
+    return total;
+}
 
 function normalizeArchivePath(value) {
     if (typeof value !== 'string' || !value || value.includes('\\') || value.includes('\0')) throw new Error('Invalid archive path');
@@ -1485,7 +1523,9 @@ async function prepareZipImport(file) {
     showModal('importModal');
     try {
         if (file.size > IMPORT_MAX_ARCHIVE) throw new Error('ZIP is larger than 25 MB');
-        const archive = fflate.unzipSync(new Uint8Array(await file.arrayBuffer()));
+        const bytes = new Uint8Array(await file.arrayBuffer());
+        inspectZipArchive(bytes);
+        const archive = fflate.unzipSync(bytes);
         const entries = [];
         let total = 0;
         for (const [rawPath, bytes] of Object.entries(archive)) {
@@ -1544,10 +1584,10 @@ async function publishWorkspaceBatch() {
     const candidates = AppState.files.filter(file => file.type === 'file' && (file.imported || file.modified || file.isNew));
     if (!candidates.length) { alert('There are no imported or unsaved files to publish.'); return; }
     const summary = candidates.map(file => file.path).join('\n');
-    if (!confirm(`Publish ${candidates.length} file(s) to ${AppState.currentRepo} on ${AppState.currentBranch}?\n\n${summary.slice(0, 1800)}`)) return;
+    if (!confirm(`Create a review pull request with ${candidates.length} file(s) for ${AppState.currentRepo}?\n\n${summary.slice(0, 1800)}`)) return;
     const button = document.getElementById('publishBtn');
     button.disabled = true;
-    button.textContent = 'Publishing…';
+    button.textContent = 'Creating review…';
     try {
         const changes = [];
         for (const file of candidates) {
@@ -1557,22 +1597,23 @@ async function publishWorkspaceBatch() {
         }
         const response = await fetch(`/api/github/repos/${AppState.currentRepo}/batch`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ branch: AppState.currentBranch, message: `Publish ${candidates.length} workspace file(s)`, changes })
+            body: JSON.stringify({ branch: AppState.currentBranch, message: `Review ${candidates.length} workspace file(s)`, changes, review: true })
         });
         const body = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(body.error || body.message || 'Batch publish failed');
         candidates.forEach(file => { file.imported = false; file.modified = false; file.isNew = false; file.baseContent = file.content || ''; });
         AppState.lastGitHubCommitSha = body.sha || body.commit?.sha || null;
-        document.getElementById('fileStatus').textContent = 'Published';
+        document.getElementById('fileStatus').textContent = 'Review ready';
         updatePublishButton();
         await loadRepository(AppState.currentRepo);
-        alert(`Published commit ${String(AppState.lastGitHubCommitSha || '').slice(0, 7)}.`);
+        const pullRequestUrl = body.pullRequest?.html_url;
+        alert(pullRequestUrl ? `Review pull request created.\n\n${pullRequestUrl}` : `Review branch created at ${String(AppState.lastGitHubCommitSha || '').slice(0, 7)}.`);
     } catch (error) {
         alert(`Publish failed: ${error.message}`);
         updatePublishButton();
     } finally {
         button.disabled = false;
-        button.innerHTML = '<i class="fas fa-cloud-upload-alt"></i> Publish';
+        button.innerHTML = '<i class="fas fa-code-branch"></i> Create review PR';
         updatePublishButton();
     }
 }

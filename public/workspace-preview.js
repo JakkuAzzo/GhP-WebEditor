@@ -94,20 +94,16 @@
     }
 
     function sanitizeBodyHtml(html) {
-        const template = document.createElement('template');
-        template.innerHTML = html;
-        template.content.querySelectorAll('script, iframe, object, embed, base, meta, link').forEach(node => node.remove());
-        template.content.querySelectorAll('*').forEach(node => {
-            for (const attribute of [...node.attributes]) {
-                const name = attribute.name.toLowerCase();
-                const value = attribute.value.trim().toLowerCase();
-                if (name.startsWith('on') || name === 'srcdoc'
-                    || ((name === 'href' || name === 'src') && value.startsWith('javascript:'))) {
-                    node.removeAttribute(attribute.name);
-                }
-            }
+        if (!global.DOMPurify) throw new Error('Visual editing is unavailable until the HTML sanitizer loads');
+        // This markup is inserted into the privileged editor document. Limit the
+        // visual mode to plain HTML; SVG and MathML carry active namespaced URLs.
+        return global.DOMPurify.sanitize(html, {
+            USE_PROFILES: { html: true },
+            FORBID_TAGS: ['base', 'form', 'iframe', 'link', 'meta', 'object', 'embed'],
+            FORBID_ATTR: ['action', 'formaction', 'srcdoc', 'style', 'target'],
+            ALLOW_DATA_ATTR: false,
+            ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|tel):|[^a-z]|[a-z+.-]+(?:[^a-z+.-:]|$))/i
         });
-        return template.innerHTML;
     }
 
     function visualBody(source) {

@@ -60,6 +60,7 @@ function createApp(options = {}) {
     slug: process.env.GITHUB_APP_SLUG,
     callbackUrl: process.env.GITHUB_APP_CALLBACK_URL
   };
+  const hostedEditorUrl = options.hostedEditorUrl ?? process.env.GHP_WEB_APP_URL ?? null;
   const allowedHosts = options.allowedHosts || parseAllowedHosts();
   const cloneRepository = options.cloneRepository || (async (url, dir, cloneOptions) => {
     const git = simpleGit({ timeout: { block: Number(process.env.CLONE_TIMEOUT_MS) || 120_000 } });
@@ -87,6 +88,7 @@ function createApp(options = {}) {
   app.use(express.json({ limit: `${MAX_FILE_SIZE}b` }));
   app.use('/lib/codemirror', bufferedStatic(path.join(__dirname, 'node_modules', 'codemirror')));
   app.use('/lib/marked', bufferedStatic(path.join(__dirname, 'node_modules', 'marked')));
+  app.use('/lib/dompurify', bufferedStatic(path.join(__dirname, 'node_modules', 'dompurify', 'dist')));
   app.use('/lib/fontawesome/fontawesome-free', bufferedStatic(path.join(__dirname, 'node_modules', '@fortawesome', 'fontawesome-free')));
   app.use('/lib/fflate', bufferedStatic(path.join(__dirname, 'node_modules', 'fflate')));
   app.use(bufferedStatic(path.join(__dirname, 'public'), { index: 'index.html' }));
@@ -98,6 +100,10 @@ function createApp(options = {}) {
   }
 
   app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
+  app.get('/api/runtime', (_req, res) => res.json({
+    githubPublishing: Boolean(githubConfig.clientId && githubConfig.clientSecret && githubConfig.slug),
+    hostedEditorUrl
+  }));
   registerGitHubRoutes(app, { authStates, githubSessions, githubFetch, githubConfig });
 
   app.post('/api/preview', (req, res) => {
@@ -288,7 +294,7 @@ function createApp(options = {}) {
   return app;
 }
 
-function startServer(port = Number(process.env.PORT) || 3000, host = process.env.HOST || '127.0.0.1') {
+function startServer(port = Number(process.env.PORT) || 3000, host = process.env.HOST || '0.0.0.0') {
   const app = createApp();
   const server = app.listen(port, host, () => {
     const address = server.address();

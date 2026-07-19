@@ -18,6 +18,7 @@ Thumbs.db
 
 # Electron
 out/
+release/
 
 # Vendor libraries (copied from node_modules)
 public/lib/

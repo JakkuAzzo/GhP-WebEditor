@@ -1,4 +1,4 @@
-name: Deploy static editor to GitHub Pages
+name: Deploy product site to GitHub Pages
 
 on:
   push:
