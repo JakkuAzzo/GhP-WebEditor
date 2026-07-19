@@ -21,7 +21,7 @@ test('health and clone request validation are deterministic', async t => {
   const health = await fetch(`${baseUrl}/api/health`);
   assert.deepEqual(await health.json(), { status: 'ok' });
   const runtime = await fetch(`${baseUrl}/api/runtime`);
-  assert.deepEqual(await runtime.json(), { githubPublishing: false, hostedEditorUrl: null });
+  assert.deepEqual(await runtime.json(), { localOnly: false });
   const blocked = await fetch(`${baseUrl}/api/clone`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },

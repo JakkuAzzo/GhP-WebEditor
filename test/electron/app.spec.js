@@ -8,6 +8,9 @@ test('Electron starts the local server and loads the sandboxed application', asy
   try {
     const window = await electronApp.firstWindow();
     await expect(window.locator('h1')).toContainText('GitHub Pages Web Editor');
+    await expect(window.locator('#githubConnectBtn')).toBeHidden();
+    await expect(window.locator('#publishBtn')).toBeHidden();
+    await expect(window.locator('#connectGithub')).toContainText('Import a ZIP');
     expect(await window.evaluate(() => typeof window.require)).toBe('undefined');
     await expect(window.locator('#previewFrame')).toHaveAttribute('sandbox', 'allow-scripts');
     expect(await electronApp.evaluate(({ BrowserWindow }) => {

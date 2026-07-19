@@ -1,12 +1,10 @@
 # GhP WebEditor
 
 GhP WebEditor helps people edit GitHub Pages sites with code or visual tools,
-preview the result, and open a review pull request in a repository they own or
-manage. It also provides a local desktop workspace for ZIP-based editing.
+preview the result, and export a complete website ZIP ready to upload.
 
-> **Release model:** GitHub Pages hosts the public product site; the Railway web
-> app is the supported GitHub-connected editor; macOS and Windows desktop builds
-> are local/ZIP-first. Copilot, collaboration, and visual editing remain
+> **Release model:** GitHub Pages hosts the public product site; macOS and Windows
+> desktop builds are local/ZIP-first. Copilot, collaboration, and visual editing remain
 > experimental. Third-party plugins are disabled until they have a security sandbox.
 
 ## GitHub Pages product site
@@ -19,10 +17,10 @@ server session at runtime. The static site:
 - explains the secure review-PR workflow, links to releases, and accepts feedback;
 - keeps the project inbox address out of page source by using FormSubmit's endpoint
   token; and
-- directs GitHub-connected work to the hosted editor.
+- never asks users for GitHub credentials.
 
 GitHub Pages paths on the same account share a browser origin, so a bearer-token
-editor is unsafe there. Use the Railway-hosted editor for GitHub publishing.
+editor is unsafe there. The v1 product has no account connection at all.
 
 To build and test this edition locally:
 
@@ -98,23 +96,21 @@ npm install
 npm run electron
 ```
 
-The desktop app supports local file and ZIP workflows. Set `GHP_WEB_APP_URL` when
-building it to make its GitHub action open the hosted editor.
+The desktop app supports local file and ZIP workflows. It does not require an
+account, access token, or server setup.
 
 ## Usage Overview
 
-1. **Connect to GitHub:** In the hosted web editor, the user signs in to
-their own GitHub account and installs the GitHub App for only the repositories they
-select. The app never receives a personal access token in the browser.
+1. **Open a site:** Import an existing website ZIP or create files in a new local
+workspace.
 2. **Navigate:** Use the left sidebar’s breadcrumbs, search, and folder inspector to
 move through large projects.
 3. **Open Files:** Multi-select items for bulk actions or open files individually in
 a tabbed editor.
 4. **Edit and render:** Toggle between Code and GUI modes, then preview nested HTML,
 CSS, JavaScript modules, and local assets together.
-5. **Create a review PR:** GitHub-backed changes are committed to a new
-`ghp-review/*` branch and opened as a pull request against the selected branch. The
-repository owner reviews and merges it from their own GitHub account before Pages deploys.
+5. **Export and publish:** Download the finished ZIP, extract it, and upload the
+files to the GitHub repository that publishes the site.
 
 ## New: Clone from Git URL
 
@@ -137,15 +133,13 @@ Backend API (for integrations):
 - POST `/api/clone/:id/directory` with `{ path }` creates a directory
 - GET `/api/clone/:id/status` reports local Git changes
 - POST `/api/clone/:id/commit` creates a local commit
-- POST `/api/github/repos/:owner/:repo/batch` with `review: true` creates a review
-  branch and pull request for a reviewed batch of base64 files
 
 Notes:
 
 - Clones are stored under the OS temp directory and are not persisted across restarts.
 - Files larger than 2MB are flagged as `tooLarge` and not inlined.
 - Clone files can be edited through the local API. Status and local commits are
-supported by the API. GitHub-backed workspaces support atomic batch publishing.
+  supported by the API.
 - For safety, clone URLs must use HTTPS and target an allowed host. The default
 hosts are GitHub, GitLab, and Bitbucket.
 
@@ -193,17 +187,9 @@ select nested blocks, edit inline text, move, drag, or delete elements, and push
 document body back into code without leaking editor metadata. The sandboxed Preview
 is the rendering authority and composes workspace styles, scripts, modules, and assets.
 
-### GitHub + Copilot Login
-GitHub uses a server-mediated GitHub App user authorization flow. The access token
-is stored only in the loopback server's bounded in-memory session and the browser
-receives an HTTP-only session cookie. Copilot credentials remain page-memory-only.
-
-Configure a GitHub App with **Contents: read and write** and **Pages: read**, request
-user authorization during installation, and use the Railway HTTPS callback and setup
-URLs. Export `GITHUB_APP_CLIENT_ID`, `GITHUB_APP_CLIENT_SECRET`, `GITHUB_APP_SLUG`,
-`GITHUB_APP_CALLBACK_URL`, and `GHP_WEB_APP_URL` before starting the hosted editor.
-GitHub's installation UI lets each user grant all repositories or only selected
-repositories. See [production deployment](docs/DEPLOYMENT.md) for the exact setup.
+### Local-only release
+The downloadable app does not sign users into GitHub or store GitHub credentials.
+Account-connected publishing is intentionally deferred to a future release.
 
 ## Project Structure
 
@@ -216,7 +202,7 @@ GhP-WebEditor/
 │   └── workspace-preview.js # Multi-file preview composition and sanitising
 ├── lib/
 │   ├── clone-workspace.js  # Clone workspace security and path boundaries
-│   └── github-app.js       # OAuth sessions, repository authorization, API proxy
+│   └── github-app.js       # Deferred GitHub App integration
 ├── test/                   # Unit, API, fixture, and Electron tests
 ├── .github/workflows/      # Continuous integration
 ├── server.js              # Express server entrypoint
@@ -233,13 +219,12 @@ GhP-WebEditor/
 - **Markdown:** Marked.js
 - **Backend:** Express.js
 - **Desktop:** Electron
-- **APIs:** GitHub REST API v3 + Copilot proxy
+- **APIs:** local clone and preview APIs; Copilot remains experimental
 
 ## Current limits
 
-- The supported publishing path uses the hosted editor with a configured
-  GitHub App. The user owns the selected repository and pull request; the app creates
-  a review branch and does not merge or alter Pages settings automatically.
+- The v1 release does not connect to GitHub accounts or publish on a user's behalf.
+  Export the completed website ZIP and upload its files through GitHub yourself.
 - It does not run Jekyll, npm, bundlers, or framework-specific production builds for
 the edited project. Sites requiring a build pipeline must keep that pipeline in
 GitHub Actions or another build service.
@@ -247,14 +232,11 @@ GitHub Actions or another build service.
 local image/font/media assets. Multi-page link navigation, service workers, server
 features, and framework-specific build behavior still require an acceptance pass
 against the deployed Pages URL.
-- Clone workspaces are temporary and local. They can be edited and committed locally;
-remote push still requires the GitHub-backed workspace flow.
+- Clone workspaces are temporary and local. They can be edited and committed locally,
+  but v1 does not push them to a remote repository.
 - ZIP import accepts archives up to 25MB (50MB uncompressed), rejects unsafe paths and
   `.git` content, and shows a manifest before replacing the workspace. Export preserves
   binary assets and selected-file exports are ZIP archives.
-- Railway intentionally runs one application replica for v1 because GitHub sessions
-  are held in memory. Restarting the service signs users out; a shared session store
-  is required before horizontal scaling.
 
 ## License
 
@@ -263,7 +245,6 @@ purchase is required for production use. See [LICENSE](LICENSE) for details.
 
 ## Support
 
-For deployment, GitHub App, and signed-release setup, see
-[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). For feature requests or support, use the
-feedback form on the GitHub Pages product site or contact the project maintainer
-through the repository.
+For signed-release setup, see [docs/RELEASES.md](docs/RELEASES.md). For feature
+requests or support, use the feedback form on the GitHub Pages product site or contact
+the project maintainer through the repository.

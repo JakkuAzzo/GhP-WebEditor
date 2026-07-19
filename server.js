@@ -60,7 +60,7 @@ function createApp(options = {}) {
     slug: process.env.GITHUB_APP_SLUG,
     callbackUrl: process.env.GITHUB_APP_CALLBACK_URL
   };
-  const hostedEditorUrl = options.hostedEditorUrl ?? process.env.GHP_WEB_APP_URL ?? null;
+  const localOnly = options.localOnly ?? process.env.GHP_LOCAL_ONLY === 'true';
   const allowedHosts = options.allowedHosts || parseAllowedHosts();
   const cloneRepository = options.cloneRepository || (async (url, dir, cloneOptions) => {
     const git = simpleGit({ timeout: { block: Number(process.env.CLONE_TIMEOUT_MS) || 120_000 } });
@@ -100,10 +100,7 @@ function createApp(options = {}) {
   }
 
   app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
-  app.get('/api/runtime', (_req, res) => res.json({
-    githubPublishing: Boolean(githubConfig.clientId && githubConfig.clientSecret && githubConfig.slug),
-    hostedEditorUrl
-  }));
+  app.get('/api/runtime', (_req, res) => res.json({ localOnly }));
   registerGitHubRoutes(app, { authStates, githubSessions, githubFetch, githubConfig });
 
   app.post('/api/preview', (req, res) => {

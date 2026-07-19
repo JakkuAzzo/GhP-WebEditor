@@ -35,7 +35,7 @@ const AppState = {
     suppressBroadcast: false
 };
 
-let hostedEditorUrl = null;
+let localOnlyRuntime = false;
 
 const FILE_TEMPLATES = {
     blank: '',
@@ -698,11 +698,11 @@ function showGitHubAuthModal() {
 
 async function connectToGitHub() {
     if (window.GhpStaticApi?.localOnly) {
-        alert('This GitHub Pages site is for local files and ZIP export. Open the hosted GhP WebEditor to sign in with GitHub and create a review pull request.');
+        alert('This GitHub Pages site is for product information. Download the desktop app for local editing, preview, and ZIP export.');
         return;
     }
-    if (hostedEditorUrl) {
-        window.location.assign(hostedEditorUrl);
+    if (localOnlyRuntime) {
+        document.getElementById('importFileInput').click();
         return;
     }
     document.getElementById('githubAuthModal').classList.remove('active');
@@ -714,26 +714,28 @@ async function authenticateWithGitHub() {
         const runtimeResponse = await fetch('/api/runtime');
         if (runtimeResponse.ok) {
             const runtime = await runtimeResponse.json();
-            hostedEditorUrl = typeof runtime.hostedEditorUrl === 'string' && /^https:\/\//.test(runtime.hostedEditorUrl)
-                ? runtime.hostedEditorUrl
-                : null;
+            localOnlyRuntime = runtime.localOnly === true;
+            if (localOnlyRuntime) {
+                document.documentElement.dataset.runtime = 'desktop-local';
+                document.querySelectorAll('#githubConnectBtn, #publishBtn, #commitHistoryBtn, #openCloneModalBtn, #welcomeGitHubGuide').forEach(element => {
+                    element.style.display = 'none';
+                });
+                const welcomeButton = document.getElementById('connectGithub');
+                if (welcomeButton) welcomeButton.innerHTML = '<i class="fas fa-file-import"></i> Import a ZIP';
+                const welcomeTitle = document.querySelector('.welcome-content h2');
+                if (welcomeTitle) welcomeTitle.textContent = 'Build, edit, and export your website.';
+                const welcomeLead = document.querySelector('.welcome-lede');
+                if (welcomeLead) welcomeLead.textContent = 'Import a site ZIP or start from a blank file, edit it in code or visually, then export the finished website.';
+                return;
+            }
         }
         const response = await fetch('/api/auth/github/status');
         if (!response.ok) throw new Error('Authentication status failed');
         const status = await response.json();
         if (!status.configured) {
             const connect = document.getElementById('githubConnectBtn');
-            if (hostedEditorUrl) {
-                connect.disabled = false;
-                connect.innerHTML = '<i class="fas fa-arrow-up-right-from-square"></i> Open web editor';
-                connect.title = 'GitHub publishing is available in the hosted web editor';
-                document.querySelectorAll('#connectGithub, #connectGithubSubmit').forEach(button => {
-                    button.innerHTML = '<i class="fas fa-arrow-up-right-from-square"></i> Open web editor';
-                });
-            } else {
-                connect.disabled = true;
-                connect.title = 'Configure GITHUB_APP_CLIENT_ID, GITHUB_APP_CLIENT_SECRET, and GITHUB_APP_SLUG';
-            }
+            connect.disabled = true;
+            connect.title = 'GitHub account connection is planned for a future release';
             return;
         }
         if (!status.authenticated) return;

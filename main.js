@@ -6,6 +6,9 @@ let appUrl;
 
 async function ensureServer() {
   if (localServer) return appUrl;
+  // The downloadable edition deliberately has no GitHub account connection.
+  // Account-connected publishing returns in a future release.
+  process.env.GHP_LOCAL_ONLY = 'true';
   localServer = startServer(0, '127.0.0.1');
   await new Promise((resolve, reject) => {
     localServer.once('listening', resolve);

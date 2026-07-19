@@ -3,7 +3,7 @@ const { test, expect } = require('@playwright/test');
 test('shows the product landing page under a GitHub Pages subpath', async ({ page }) => {
   await page.goto('./');
   await expect(page).toHaveTitle(/GhP WebEditor/);
-  await expect(page.getByRole('heading', { name: 'Edit your site. Preview it. Open a review PR.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Edit your site. Preview it. Export it.' })).toBeVisible();
   await expect(page.getByRole('link', { name: /Download latest release/ })).toHaveAttribute('href', 'https://github.com/JakkuAzzo/GhP-WebEditor/releases/latest');
   await expect(page.getByRole('link', { name: 'Browse releases' })).toHaveAttribute('href', 'https://github.com/JakkuAzzo/GhP-WebEditor/releases');
   await expect(page.locator('script')).toHaveCount(0);
