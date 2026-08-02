@@ -225,9 +225,10 @@ GhP-WebEditor/
 
 - The v1 release does not connect to GitHub accounts or publish on a user's behalf.
   Export the completed website ZIP and upload its files through GitHub yourself.
-- It does not run Jekyll, npm, bundlers, or framework-specific production builds for
-the edited project. Sites requiring a build pipeline must keep that pipeline in
-GitHub Actions or another build service.
+- React/Vite sites are supported when imported as their production output (`dist/`
+  contents): static HTML, CSS, JavaScript chunks, and assets preview and export
+  correctly. The app does not run `npm install` or arbitrary project build scripts;
+  build source projects with your normal toolchain first, then import the output.
 - The preview composes nested HTML, imported CSS, classic and module JavaScript, and
 local image/font/media assets. Multi-page link navigation, service workers, server
 features, and framework-specific build behavior still require an acceptance pass

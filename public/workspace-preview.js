@@ -68,18 +68,30 @@
         return `data:${mimeType};base64,${btoa(binary)}`;
     }
 
-    async function rewriteModuleImports(content, currentPath, fileMap, getContent, visited = new Set()) {
+    async function rewriteModuleImports(content, currentPath, fileMap, getContent, getAssetUrl, visited = new Set()) {
         async function replaceReference(match, prefix, quote, reference, suffix = '') {
             const imported = workspaceFile(currentPath, reference, fileMap);
             if (!imported || visited.has(imported.path)) return match;
             const importedContent = await getContent(imported);
-            const rewritten = await rewriteModuleImports(importedContent, imported.path, fileMap, getContent, new Set(visited).add(imported.path));
+            const rewritten = await rewriteModuleImports(importedContent, imported.path, fileMap, getContent, getAssetUrl, new Set(visited).add(imported.path));
             return `${prefix}${quote}${textDataUrl('text/javascript', rewritten)}${quote}${suffix}`;
         }
         let rewritten = await replaceAsync(
             content,
             /(\b(?:import|export)\s+[^'";]*?\sfrom\s*)(['"])([^'"]+)\2/g,
             replaceReference
+        );
+        // Vite/Rollup production bundles use import.meta.url for assets imported
+        // from JavaScript. Once the module is inlined as a data URL, that URL no
+        // longer points at the workspace, so resolve the asset before inlining.
+        rewritten = await replaceAsync(
+            rewritten,
+            /new\s+URL\(\s*(['"])([^'"]+)\1\s*,\s*import\.meta\.url\s*\)/g,
+            async (match, _quote, reference) => {
+                const asset = workspaceFile(currentPath, reference, fileMap);
+                const assetUrl = asset && getAssetUrl ? await getAssetUrl(asset) : null;
+                return assetUrl ? JSON.stringify(assetUrl) : match;
+            }
         );
         rewritten = await replaceAsync(rewritten, /(\bimport\s*)(['"])([^'"]+)\2/g, replaceReference);
         return replaceAsync(
@@ -187,11 +199,12 @@
                 content = await getContent(file);
             }
             if ((script.type || '').toLowerCase() === 'module') {
-                content = await rewriteModuleImports(
+            content = await rewriteModuleImports(
                     content,
                     sourcePath || currentFile.path,
                     fileMap,
                     getContent,
+                    getAssetUrl,
                     new Set(sourcePath ? [sourcePath] : [])
                 );
             }
