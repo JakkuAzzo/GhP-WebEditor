@@ -1,7 +1,9 @@
 const AppState = {
-    githubToken: localStorage.getItem('githubToken') || null,
-    copilotToken: localStorage.getItem('copilotToken') || null,
-    copilotEndpoint: localStorage.getItem('copilotEndpoint') || 'https://copilot-proxy.githubusercontent.com/v1/chat/completions',
+    // Credentials are deliberately memory-only. A hosted editor must not persist
+    // GitHub or Copilot credentials in browser storage.
+    githubToken: null,
+    copilotToken: null,
+    copilotEndpoint: 'https://copilot-proxy.githubusercontent.com/v1/chat/completions',
     currentUser: null,
     currentRepo: null,
     currentBranch: 'main',
@@ -120,6 +122,9 @@ const PluginManager = {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
+    localStorage.removeItem('githubToken');
+    localStorage.removeItem('copilotToken');
+    localStorage.removeItem('copilotEndpoint');
     initializeEditor();
     initializeGuiEditor();
     initializeThemes();
@@ -473,7 +478,6 @@ async function connectToGitHub() {
         return;
     }
     AppState.githubToken = token;
-    localStorage.setItem('githubToken', token);
     document.getElementById('githubAuthModal').classList.remove('active');
     await authenticateWithGitHub();
 }
@@ -508,7 +512,6 @@ function logout() {
     AppState.githubToken = null;
     AppState.currentUser = null;
     AppState.repositories = [];
-    localStorage.removeItem('githubToken');
     document.getElementById('githubConnectBtn').style.display = 'flex';
     document.getElementById('userInfo').style.display = 'none';
     document.getElementById('repoSelect').innerHTML = '<option value="">Select a repository...</option>';
@@ -1321,8 +1324,6 @@ function saveCopilotSettings() {
     }
     AppState.copilotToken = token;
     AppState.copilotEndpoint = endpoint || AppState.copilotEndpoint;
-    localStorage.setItem('copilotToken', AppState.copilotToken);
-    localStorage.setItem('copilotEndpoint', AppState.copilotEndpoint);
     document.getElementById('copilotModal').classList.remove('active');
     document.getElementById('copilotMessages').innerHTML = '<p class="copilot-message">Copilot connected.</p>';
 }

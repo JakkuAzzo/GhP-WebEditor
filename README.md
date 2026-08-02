@@ -4,6 +4,23 @@ A commercial-grade GitHub Pages web editor that blends advanced folder navigatio
 multi-file operations, real-time collaboration, Copilot-powered assistance, and a
 drag-and-drop GUI builder on top of a battle-tested code editor.
 
+## Hosted access
+
+The hosted Railway service is a private beta, not an open public editor. It requires
+an invitation-managed account before any editor or clone API route is available.
+
+For a hosted deployment, configure these Railway variables and do not commit them:
+
+```text
+GHP_SESSION_SECRET=<at least 32 random bytes>
+GHP_USERS=[{"email":"member@example.com","passwordHash":"<bcrypt hash>","role":"member"}]
+NODE_ENV=production
+```
+
+`AUTH_REQUIRED` defaults to `true`. Set it to `false` only for local development.
+GitHub and Copilot tokens are memory-only; users reconnect after a browser session
+ends. A future GitHub OAuth implementation is required before broad public access.
+
 ## Feature Highlights
 
 - 🧭 **Advanced Folder Navigation** – Breadcrumbs, collapsible tree views, and

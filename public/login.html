@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Sign in — GhP WebEditor</title>
+    <style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#111827;color:#f7f7f8;font-family:system-ui,sans-serif}.card{width:min(420px,calc(100% - 3rem));padding:2rem;border:1px solid #3b4656;background:#19212d;box-shadow:10px 10px 0 #b7ccff}h1{margin:0;font-size:2rem}p{color:#bac4d1;line-height:1.5}.field{display:grid;gap:.4rem;margin:1rem 0}input,button{box-sizing:border-box;width:100%;border-radius:.45rem;padding:.8rem;font:inherit}input{border:1px solid #617088;background:#101720;color:#fff}button{border:0;background:#d8ef5d;color:#111827;font-weight:750;cursor:pointer}.error{min-height:1.4rem;color:#ffb4aa;font-size:.9rem}</style>
+  </head>
+  <body><main class="card"><p>GhP WebEditor / private beta</p><h1>Sign in</h1><p>Access is invitation-only. Use the account provided by BStudioB.</p><form id="login-form"><label class="field">Email <input name="email" type="email" autocomplete="email" required></label><label class="field">Password <input name="password" type="password" autocomplete="current-password" required></label><p class="error" id="error" aria-live="polite"></p><button type="submit">Sign in</button></form></main><script>document.getElementById('login-form').addEventListener('submit',async e=>{e.preventDefault();const form=e.currentTarget,error=document.getElementById('error');error.textContent='';const data=Object.fromEntries(new FormData(form));const response=await fetch('/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(data)});if(response.ok){location.assign('/');return}const result=await response.json().catch(()=>({}));error.textContent=result.error||'Could not sign in.';});</script></body>
+</html>
