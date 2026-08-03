@@ -153,7 +153,6 @@ function initializeShowcase() {
     const container = document.getElementById('buildyShowcase');
     if (!container) return;
     const examples = [
-        { name: 'Marisa Birthday Weekend', category: 'Private event hub', repo: 'marisa-birthday-weekend', url: 'https://jakkuazzo.github.io/marisa-birthday-weekend/', color: 'coral' },
         { name: 'Cards PythonQT Demo', category: 'Shared play', repo: 'Cards_PythonQT_Demo', url: 'https://jakkuazzo.github.io/Cards_PythonQT_Demo/', color: 'violet' },
         { name: 'AutoTimeSheet', category: 'Productivity', repo: 'AutoTimeSheet-GHP', url: 'https://jakkuazzo.github.io/AutoTimeSheet-GHP/', color: 'mint' },
         { name: 'StudyPro', category: 'Learning workflow', repo: 'StudyPro', url: 'https://jakkuazzo.github.io/StudyPro/', color: 'amber' },

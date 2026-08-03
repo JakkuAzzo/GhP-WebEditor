@@ -1,8 +1,7 @@
 # Buildy showcase clips
 
-The in-app showcase now uses six public GitHub Pages builds as proof-of-work examples:
-Marisa Birthday Weekend, Cards PythonQT Demo, AutoTimeSheet, StudyPro, GuyRofe and the
-TildeSec archive. The cards open the live sites in a new tab and use GitHub's generated
+The in-app showcase now uses five public GitHub Pages builds as proof-of-work examples:
+Cards PythonQT Demo, AutoTimeSheet, StudyPro, GuyRofe and the TildeSec archive. The cards open the live sites in a new tab and use GitHub's generated
 repository preview image when available.
 
 ## Short-form ad set
@@ -12,8 +11,8 @@ repository preview image when available.
    made visual.”
 2. **Code and canvas (12 seconds)** — split-screen CodeMirror and GUI mode; drag a hero block,
    switch to code, preview, and save. End card: “Design visually. Keep your code.”
-3. **A real project archive (15 seconds)** — cycle through the six showcase cards, open
-   Marisa Birthday Weekend, AutoTimeSheet and StudyPro, and show the URL bar confirming each
+3. **A real project archive (15 seconds)** — cycle through the five showcase cards, open
+   AutoTimeSheet, StudyPro and GuyRofe, and show the URL bar confirming each
    is a real Pages deployment.
 4. **For client work (20 seconds)** — show a freelancer moving between client repositories,
    previewing changes and reviewing the file tree. End card: “Buildy Client plans — subject
