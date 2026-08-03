@@ -8,18 +8,27 @@ const simpleGit = require('simple-git');
 const session = require('express-session');
 const rateLimit = require('express-rate-limit');
 const bcrypt = require('bcryptjs');
+const { PLANS } = require('./plans');
+const billingStore = require('./billing-store');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = Number(process.env.PORT || process.env.BUILDY_PORT || 3000);
 const AUTH_REQUIRED = process.env.AUTH_REQUIRED !== 'false';
-const SESSION_SECRET = process.env.GHP_SESSION_SECRET;
+// BUILDY_* is canonical; GHP_* remains supported for existing Railway deployments.
+const SESSION_SECRET = process.env.BUILDY_SESSION_SECRET || process.env.GHP_SESSION_SECRET;
+const GITHUB_CLIENT_ID = process.env.BUILDY_GITHUB_CLIENT_ID;
+const GITHUB_CLIENT_SECRET = process.env.BUILDY_GITHUB_CLIENT_SECRET;
+const GITHUB_CALLBACK_URL = process.env.BUILDY_GITHUB_CALLBACK_URL;
+const GITHUB_WEBHOOK_SECRET = process.env.BUILDY_GITHUB_WEBHOOK_SECRET;
+const PUBLIC_MODE = process.env.BUILDY_PUBLIC_MODE === 'true';
+const TOKEN_ENCRYPTION_KEY = process.env.BUILDY_TOKEN_ENCRYPTION_KEY;
 const CLONE_TTL_MS = 60 * 60 * 1000;
-const CLONES_DIR = path.join(os.tmpdir(), 'ghp-webeditor-clones');
+const CLONES_DIR = path.join(os.tmpdir(), 'buildy-github-pages-clones');
 const cloneRegistry = new Map();
 
 function configuredUsers() {
   try {
-    const users = JSON.parse(process.env.GHP_USERS || '[]');
+    const users = JSON.parse(process.env.BUILDY_USERS || process.env.GHP_USERS || '[]');
     return Array.isArray(users) ? users.filter(user => user && user.email && user.passwordHash) : [];
   } catch {
     return [];
@@ -28,13 +37,17 @@ function configuredUsers() {
 
 const USERS = configuredUsers();
 if (!fs.existsSync(CLONES_DIR)) fs.mkdirSync(CLONES_DIR, { recursive: true });
-if (AUTH_REQUIRED && !SESSION_SECRET) console.error('GHP_SESSION_SECRET is required while authentication is enabled.');
+if (AUTH_REQUIRED && !SESSION_SECRET) console.error('BUILDY_SESSION_SECRET is required while authentication is enabled.');
+if (AUTH_REQUIRED && !TOKEN_ENCRYPTION_KEY) console.warn('BUILDY_TOKEN_ENCRYPTION_KEY is not set; GitHub tokens will not be persisted securely.');
 
 app.set('trust proxy', 1);
 app.use(helmet());
-app.use(express.json({ limit: '2mb' }));
+app.use(express.json({
+  limit: '2mb',
+  verify: (req, _res, buffer) => { req.rawBody = Buffer.from(buffer); }
+}));
 app.use(session({
-  name: 'ghp.sid',
+  name: 'buildy.sid',
   secret: SESSION_SECRET || crypto.randomBytes(32).toString('hex'),
   resave: false,
   saveUninitialized: false,
@@ -103,13 +116,125 @@ app.post('/login', loginLimiter, async (req, res) => {
 
 app.post('/logout', (req, res) => {
   req.session.destroy(() => {
+    res.clearCookie('buildy.sid');
     res.clearCookie('ghp.sid');
     res.status(204).end();
   });
 });
 
+function safeEqual(a, b) {
+  if (!a || !b) return false;
+  const left = Buffer.from(a);
+  const right = Buffer.from(b);
+  return left.length === right.length && crypto.timingSafeEqual(left, right);
+}
+
+function encryptToken(value) {
+  if (!TOKEN_ENCRYPTION_KEY) return value;
+  const key = crypto.createHash('sha256').update(TOKEN_ENCRYPTION_KEY).digest();
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+  const ciphertext = Buffer.concat([cipher.update(String(value), 'utf8'), cipher.final()]);
+  return `v1.${iv.toString('base64url')}.${cipher.getAuthTag().toString('base64url')}.${ciphertext.toString('base64url')}`;
+}
+
+function decryptToken(value) {
+  if (!value || !TOKEN_ENCRYPTION_KEY || !String(value).startsWith('v1.')) return value;
+  try {
+    const [, ivText, tagText, ciphertextText] = String(value).split('.');
+    const key = crypto.createHash('sha256').update(TOKEN_ENCRYPTION_KEY).digest();
+    const decipher = crypto.createDecipheriv('aes-256-gcm', key, Buffer.from(ivText, 'base64url'));
+    decipher.setAuthTag(Buffer.from(tagText, 'base64url'));
+    return Buffer.concat([decipher.update(Buffer.from(ciphertextText, 'base64url')), decipher.final()]).toString('utf8');
+  } catch { return null; }
+}
+
+app.get('/auth/github/start', (req, res) => {
+  if (!GITHUB_CLIENT_ID || !GITHUB_CALLBACK_URL) return res.status(503).send('GitHub App sign-in is not configured.');
+  if (AUTH_REQUIRED && !TOKEN_ENCRYPTION_KEY) return res.status(503).send('Secure GitHub token storage is not configured.');
+  const state = crypto.randomBytes(24).toString('hex');
+  req.session.githubOAuthState = state;
+  const params = new URLSearchParams({ client_id: GITHUB_CLIENT_ID, redirect_uri: GITHUB_CALLBACK_URL, state });
+  return res.redirect(`https://github.com/login/oauth/authorize?${params}`);
+});
+
+app.get('/auth/github/callback', async (req, res) => {
+  if (!GITHUB_CLIENT_ID || !GITHUB_CLIENT_SECRET || !GITHUB_CALLBACK_URL) return res.status(503).send('GitHub App sign-in is not configured.');
+  if (!req.query.code || !safeEqual(String(req.query.state || ''), String(req.session.githubOAuthState || ''))) {
+    return res.status(400).send('Invalid GitHub sign-in state.');
+  }
+  delete req.session.githubOAuthState;
+  try {
+    const tokenResponse = await fetch('https://github.com/login/oauth/access_token', {
+      method: 'POST',
+      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ client_id: GITHUB_CLIENT_ID, client_secret: GITHUB_CLIENT_SECRET, code: req.query.code, redirect_uri: GITHUB_CALLBACK_URL })
+    });
+    const token = await tokenResponse.json();
+    if (!token.access_token) return res.status(502).send('GitHub did not return an access token.');
+    req.session.githubAccessToken = encryptToken(token.access_token);
+    try {
+      const profileResponse = await fetch('https://api.github.com/user', { headers: { Accept: 'application/vnd.github+json', Authorization: `Bearer ${token.access_token}`, 'User-Agent': 'Buildy' } });
+      if (profileResponse.ok) {
+        const profile = await profileResponse.json();
+        req.session.githubAccountId = String(profile.id);
+        req.session.githubLogin = profile.login;
+      }
+    } catch (error) { console.warn('Could not read GitHub profile:', error.message); }
+    return res.redirect('/#github-app-connected');
+  } catch (error) {
+    console.error('GitHub App callback failed:', error.message);
+    return res.status(502).send('GitHub sign-in failed.');
+  }
+});
+
+app.post('/api/github/marketplace/webhook', async (req, res) => {
+  if (!GITHUB_WEBHOOK_SECRET) return res.status(503).json({ error: 'Marketplace webhook is not configured.' });
+  const signature = String(req.get('x-hub-signature-256') || '');
+  const expected = `sha256=${crypto.createHmac('sha256', GITHUB_WEBHOOK_SECRET).update(req.rawBody || Buffer.from('')).digest('hex')}`;
+  if (!safeEqual(signature, expected)) return res.status(401).json({ error: 'Invalid webhook signature.' });
+  const event = req.get('x-github-event') || 'unknown';
+  const deliveryId = req.get('x-github-delivery');
+  if (!deliveryId) return res.status(400).json({ error: 'Missing GitHub delivery id.' });
+  if (event !== 'marketplace_purchase') return res.status(204).end();
+  if (!billingStore.configured()) return res.status(503).json({ error: 'Billing store is not configured.' });
+  try {
+    const payload = req.body || {};
+    await billingStore.recordWebhook({ deliveryId, eventName: event, payload });
+    const purchase = payload.marketplace_purchase || payload;
+    const account = purchase.account || {};
+    const plan = purchase.plan || {};
+    const action = purchase.action;
+    const state = action === 'cancelled' ? 'cancelled' : action === 'changed' ? 'active' : 'active';
+    await billingStore.upsertSubscription({
+      github_purchase_id: String(purchase.id || deliveryId),
+      github_account_id: String(account.id || ''),
+      github_login: account.login || null,
+      github_plan_id: String(plan.id || ''),
+      plan_name: plan.name || null,
+      billing_cycle: purchase.billing_cycle || null,
+      state,
+      effective_date: purchase.effective_date || null,
+      next_billing_date: purchase.next_billing_date || null,
+      updated_at: new Date().toISOString()
+    });
+    console.log(`GitHub Marketplace purchase ${action || 'updated'} for ${account.login || 'unknown account'}`);
+    return res.status(204).end();
+  } catch (error) {
+    console.error('Marketplace webhook persistence failed:', error.message);
+    return res.status(500).json({ error: 'Marketplace event could not be persisted.' });
+  }
+});
+
+// Public trust and conversion pages remain available before account sign-in.
+for (const page of ['pricing', 'privacy', 'terms', 'support', 'security', 'status']) {
+  app.get(`/${page}`, (_req, res) => res.sendFile(path.join(__dirname, 'public', `${page}.html`)));
+}
+app.get('/buildy-public.css', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'buildy-public.css')));
+
 function requireAccount(req, res, next) {
   if (!AUTH_REQUIRED) return next();
+  if (PUBLIC_MODE && req.session.githubAccessToken) return next();
   if (!SESSION_SECRET || !USERS.length) return res.status(503).send('Private beta access has not been configured.');
   if (req.session.user) return next();
   if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'An account is required.' });
@@ -120,6 +245,21 @@ app.use(requireAccount);
 app.use(express.static(path.join(__dirname, 'public'), { index: 'index.html' }));
 
 app.get('/api/account', (req, res) => res.json({ user: req.session.user || null }));
+app.get('/api/plans', (_req, res) => res.json({ plans: PLANS }));
+app.get('/api/billing/me', async (req, res) => {
+  if (!billingStore.configured()) return res.json({ configured: false, subscription: null });
+  try {
+    const githubAccountId = req.session.githubAccountId;
+    if (!githubAccountId) return res.json({ configured: true, subscription: null });
+    return res.json({ configured: true, subscription: await billingStore.subscriptionForAccount(githubAccountId) });
+  } catch (error) { return res.status(502).json({ error: error.message }); }
+});
+app.get('/api/github/token', (req, res) => {
+  if (!req.session.githubAccessToken) return res.status(404).json({ error: 'GitHub App is not connected.' });
+  const token = decryptToken(req.session.githubAccessToken);
+  if (!token) return res.status(500).json({ error: 'GitHub session token could not be decrypted.' });
+  return res.json({ token });
+});
 
 app.post('/api/clone', async (req, res) => {
   try {
@@ -176,6 +316,12 @@ setInterval(() => {
   }
 }, 15 * 60 * 1000).unref();
 
-app.listen(PORT, () => {
-  console.log(`GhP WebEditor running at http://localhost:${PORT}`);
-});
+if (require.main === module) {
+  const listener = app.listen(PORT, () => {
+    const address = listener.address();
+    const port = address && typeof address === 'object' ? address.port : PORT;
+    console.log(`Buildy running at http://localhost:${port}`);
+  });
+}
+
+module.exports = app;

@@ -1,6 +1,6 @@
-# GhP WebEditor Demo & Tests
+# Buildy Demo & Tests
 
-This folder contains automated testing and demonstration scripts for the GhP WebEditor application using Playwright.
+This folder contains automated testing and demonstration scripts for the Buildy application using Playwright.
 
 ## 📋 Contents
 
@@ -296,7 +296,7 @@ npx playwright show-report
 ## 📚 Learn More
 
 - [Playwright Documentation](https://playwright.dev)
-- [GhP WebEditor README](../README.md)
+- [Buildy README](../README.md)
 - [Test Best Practices](https://playwright.dev/docs/best-practices)
 
 ## 🤝 Contributing

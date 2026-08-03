@@ -1,4 +1,4 @@
-# Contributing to GitHub Pages Web Editor
+# Contributing to Buildy
 
 Thank you for your interest in contributing to this project!
 
@@ -7,8 +7,8 @@ Thank you for your interest in contributing to this project!
 1. Fork the repository
 2. Clone your fork:
    ```bash
-   git clone https://github.com/YOUR_USERNAME/GhP-WebEditor.git
-   cd GhP-WebEditor
+   git clone https://github.com/YOUR_USERNAME/Buildy.git
+   cd Buildy
    ```
 
 3. Install dependencies:
@@ -24,7 +24,7 @@ Thank you for your interest in contributing to this project!
 ## Project Structure
 
 ```
-GhP-WebEditor/
+Buildy/
 ├── public/              # Frontend files
 │   ├── index.html      # Main HTML interface
 │   ├── styles.css      # Application styles

@@ -1,13 +1,13 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('GhP WebEditor Tests', () => {
+test.describe('Buildy Tests', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('http://localhost:3000');
     await page.waitForLoadState('networkidle');
   });
 
   test('should load the application', async ({ page }) => {
-    await expect(page.locator('h1')).toContainText('GitHub Pages Web Editor');
+    await expect(page.locator('h1')).toContainText('Buildy');
     await expect(page.locator('.welcome-screen')).toBeVisible();
   });
 

@@ -1,22 +1,22 @@
 {
-  "name": "ghp-webeditor",
+  "name": "buildy-github-pages",
   "version": "1.0.0",
-  "description": "A ui web editor for github pages",
+  "description": "Buildy — a visual and code editor for GitHub Pages",
   "main": "main.js",
   "scripts": {
     "postinstall": "bash setup-libs.sh || node setup-libs.js",
     "start": "node server.js",
     "electron": "electron .",
     "build": "echo 'Build completed'",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node test-buildy.js"
   },
   "keywords": [
+    "buildy",
     "github-pages",
-    "editor",
-    "web-editor",
+    "static-sites",
     "electron"
   ],
-  "author": "",
+  "author": "BStudioB Ltd",
   "license": "Commercial",
   "dependencies": {
     "@fortawesome/fontawesome-free": "^7.1.0",

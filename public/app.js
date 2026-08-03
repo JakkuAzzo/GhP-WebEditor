@@ -86,11 +86,11 @@ button {
 }
 `,
     js: `document.addEventListener('DOMContentLoaded', () => {
-    console.log('Welcome to GhP WebEditor Pro!');
+    console.log('Welcome to Buildy!');
 });`,
     md: `# Welcome
 
-Start documenting your GitHub Pages project.
+Start documenting your GitHub Pages project with Buildy.
 `
 };
 
@@ -133,6 +133,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
     loadStateFromLocalStorage();
     loadPluginsFromStorage();
+    connectGitHubAppSession();
     refreshFileStructure();
     renderFileTree();
     updateBreadcrumbs(AppState.focusedDirectory);
@@ -469,6 +470,23 @@ function showModal(id) {
 
 function showGitHubAuthModal() {
     showModal('githubAuthModal');
+}
+
+async function connectGitHubAppSession() {
+    const button = document.getElementById('githubAppConnectBtn');
+    if (!button || window.location.protocol === 'file:') return;
+    button.addEventListener('click', () => { window.location.href = '/auth/github/start'; });
+    try {
+        const response = await fetch('/api/github/token');
+        if (!response.ok) return;
+        const data = await response.json();
+        if (data.token) {
+            AppState.githubToken = data.token;
+            await authenticateWithGitHub();
+        }
+    } catch (error) {
+        console.debug('GitHub App session unavailable:', error.message);
+    }
 }
 
 async function connectToGitHub() {
@@ -1044,7 +1062,7 @@ function downloadProject() {
     const projectData = {
         files: AppState.files,
         metadata: {
-            name: 'GitHub Pages Project',
+            name: 'Buildy GitHub Pages Project',
             created: new Date().toISOString()
         }
     };
@@ -1348,7 +1366,7 @@ async function sendCopilotPrompt() {
             body: JSON.stringify({
                 model: 'gpt-4o-mini',
                 messages: [
-                    { role: 'system', content: 'You are GitHub Copilot inside GhP WebEditor.' },
+                    { role: 'system', content: 'You are GitHub Copilot inside Buildy.' },
                     { role: 'user', content: prompt }
                 ]
             })

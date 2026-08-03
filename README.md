@@ -1,25 +1,63 @@
-# GhP-WebEditor
+# Buildy — for GitHub Pages
 
-A commercial-grade GitHub Pages web editor that blends advanced folder navigation,
+Buildy is a desktop-first GitHub Pages editor for people who want a visual workflow
+without giving up direct access to their HTML, CSS and JavaScript. It blends advanced folder navigation,
 multi-file operations, real-time collaboration, Copilot-powered assistance, and a
 drag-and-drop GUI builder on top of a battle-tested code editor.
 
-## Hosted access
+## Who Buildy is for
 
-The hosted Railway service is a private beta, not an open public editor. It requires
+- GitHub Pages beginners who want a guided editor rather than a blank repository.
+- Designers and content owners who need a quick visual/code hand-off.
+- Solo makers managing several small static sites.
+- Teachers and learners practising HTML/CSS/JavaScript with GitHub as the source of truth.
+
+Buildy is deliberately not positioned as a general SaaS site builder, a replacement for
+GitHub, or a backend hosting service.
+
+## Pricing direction
+
+Pricing is subject to change while the product is validated. The launch model separates
+individual makers from people building and maintaining sites for clients:
+
+| Tier | Price | Intended use |
+| --- | ---: | --- |
+| Project Pass | £5 one time | One individual GitHub Pages project, with limited access to other tools |
+| Client Starter | £15/month or £150/year | Freelancers and small studios maintaining up to five client projects |
+| Client Studio | £35/month or £350/year | Agencies and teams maintaining up to twenty-five client projects |
+
+The £5 tier should be treated as an early-access validation price. It must state exactly
+what is included, whether updates are included, and that GitHub, GitHub Pages, Copilot,
+hosting and any third-party services remain separate.
+
+## Optional hosted mode
+
+The Railway service is an optional private beta, not a requirement for the downloaded
+desktop app. It requires
 an invitation-managed account before any editor or clone API route is available.
 
-For a hosted deployment, configure these Railway variables and do not commit them:
+For a hosted deployment, configure these Railway variables and do not commit them. Existing
+`GHP_*` variables remain supported for backwards compatibility:
 
 ```text
-GHP_SESSION_SECRET=<at least 32 random bytes>
-GHP_USERS=[{"email":"member@example.com","passwordHash":"<bcrypt hash>","role":"member"}]
+BUILDY_SESSION_SECRET=<at least 32 random bytes>
+BUILDY_USERS=[{"email":"member@example.com","passwordHash":"<bcrypt hash>","role":"member"}]
+BUILDY_GITHUB_CLIENT_ID=<GitHub App client ID>
+BUILDY_GITHUB_CLIENT_SECRET=<GitHub App client secret>
+BUILDY_GITHUB_CALLBACK_URL=https://your-buildy-domain.example/auth/github/callback
+BUILDY_GITHUB_WEBHOOK_SECRET=<Marketplace webhook secret>
+BUILDY_PUBLIC_MODE=true
+BUILDY_TOKEN_ENCRYPTION_KEY=<at least 32 random bytes>
+SUPABASE_URL=https://<project>.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=<server-only key>
 NODE_ENV=production
 ```
 
 `AUTH_REQUIRED` defaults to `true`. Set it to `false` only for local development.
-GitHub and Copilot tokens are memory-only; users reconnect after a browser session
-ends. A future GitHub OAuth implementation is required before broad public access.
+In public mode, a user must sign in with the GitHub App before editor APIs are available.
+The OAuth token is encrypted in the server session and is never committed to the repository.
+Run `supabase-schema.sql` before enabling Marketplace billing; without a configured store,
+webhooks fail closed and no paid access is granted.
 
 ## Feature Highlights
 
@@ -60,7 +98,9 @@ npm install
 npm start
 ```
 
-Then open `http://localhost:3000`.
+Then open `http://localhost:3000` (or set `PORT`/`BUILDY_PORT`). The Electron build is
+the primary downloaded product; the Express server is for local browser use or an
+authenticated hosted beta.
 
 ### Option 2: Run as Electron Desktop App
 
@@ -155,7 +195,7 @@ AI pair programmer sits directly beside your workspace.
 ## Project Structure
 
 ```
-GhP-WebEditor/
+Buildy/
 ├── public/
 │   ├── index.html         # Application UI shell
 │   ├── styles.css         # Theme-aware styling
@@ -179,10 +219,10 @@ GhP-WebEditor/
 
 ## License
 
-This project is distributed under the **GhP WebEditor Commercial License**. A valid
+This project is distributed under the **Buildy Commercial License**. A valid
 purchase is required for production use. See [LICENSE](LICENSE) for details.
 
 ## Support
 
 For licensing questions, feature requests, or enterprise support, please contact the
-project maintainer or email `sales@ghp-webeditor.example`.
+project maintainer or email `sales@buildy.example`.

@@ -9,7 +9,7 @@ const __dirname = path.dirname(__filename);
 const REPO_URL = process.env.REPO_URL || 'https://github.com/JakkuAzzo/GuyRofe.git';
 
 async function runGUITest() {
-  console.log('🚀 Starting GhP WebEditor GUI Editing Test...\n');
+  console.log('🚀 Starting Buildy GUI Editing Test...\n');
   console.log('📦 Repository:', REPO_URL);
   console.log('🎯 Testing: Clone → GUI Edit → Preview\n');
   
@@ -34,7 +34,7 @@ async function runGUITest() {
   
   try {
     // Step 1: Open the app
-    console.log('📱 Opening GhP WebEditor...');
+    console.log('📱 Opening Buildy...');
     await page.goto('http://localhost:3000', { waitUntil: 'networkidle' });
     await page.waitForTimeout(2000);
     

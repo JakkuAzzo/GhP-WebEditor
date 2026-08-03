@@ -65,7 +65,7 @@ function fetchGitHubTree(owner, repo) {
         path: `/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`,
         method: 'GET',
         headers: {
-          'User-Agent': 'GhP-WebEditor-Test',
+          'User-Agent': 'Buildy-Test',
           'Accept': 'application/vnd.github.v3+json'
         }
       };
@@ -133,7 +133,7 @@ function compareFileLists(appFiles, githubFiles) {
 // Main test function
 async function runEnhancedGUITest() {
   console.log('═══════════════════════════════════════════════════════════════════');
-  console.log('🧪 GhP WebEditor Enhanced GUI Test with GitHub API Comparison');
+  console.log('🧪 Buildy Enhanced GUI Test with GitHub API Comparison');
   console.log('═══════════════════════════════════════════════════════════════════\n');
   
   console.log('📋 Configuration:');
@@ -215,7 +215,7 @@ async function runEnhancedGUITest() {
     
     const appTitle = await page.locator('h1').first().textContent();
     testReport.tests.appLoad = {
-      passed: appTitle.includes('GitHub Pages Web Editor'),
+      passed: appTitle.includes('Buildy'),
       details: { title: appTitle }
     };
     
@@ -358,7 +358,7 @@ async function runEnhancedGUITest() {
       await takeScreenshot('04-html-opened', 'HTML file opened in editor');
       
       // Add content to footer (or end of file)
-      const footerEdit = '\n<!-- Added by GhP WebEditor GUI Test -->\n<footer id="test-footer" data-test="true">Test Footer Content</footer>\n';
+      const footerEdit = '\n<!-- Added by Buildy GUI Test -->\n<footer id="test-footer" data-test="true">Test Footer Content</footer>\n';
       
       await page.evaluate((edit) => {
         let cm;
@@ -424,7 +424,7 @@ async function runEnhancedGUITest() {
             }
           }
           if (cm) {
-            cm.setValue('/* GhP WebEditor Test Edit */\n' + cm.getValue());
+            cm.setValue('/* Buildy Test Edit */\n' + cm.getValue());
           }
         });
         
@@ -438,7 +438,7 @@ async function runEnhancedGUITest() {
           }
           return '';
         });
-        editTestPassed = modifiedContent.includes('GhP WebEditor Test Edit');
+        editTestPassed = modifiedContent.includes('Buildy Test Edit');
       }
     }
     
