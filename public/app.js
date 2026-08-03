@@ -130,6 +130,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initializeThemes();
     initializeCollaboration();
     initializeCopilotPanel();
+    initializeShowcase();
     setupEventListeners();
     loadStateFromLocalStorage();
     loadPluginsFromStorage();
@@ -147,6 +148,24 @@ document.addEventListener('DOMContentLoaded', () => {
         joinCollaborationSession(urlSession);
     }
 });
+
+function initializeShowcase() {
+    const container = document.getElementById('buildyShowcase');
+    if (!container) return;
+    const examples = [
+        { name: 'Marisa Birthday Weekend', category: 'Private event hub', repo: 'marisa-birthday-weekend', url: 'https://jakkuazzo.github.io/marisa-birthday-weekend/', color: 'coral' },
+        { name: 'Cards PythonQT Demo', category: 'Shared play', repo: 'Cards_PythonQT_Demo', url: 'https://jakkuazzo.github.io/Cards_PythonQT_Demo/', color: 'violet' },
+        { name: 'AutoTimeSheet', category: 'Productivity', repo: 'AutoTimeSheet-GHP', url: 'https://jakkuazzo.github.io/AutoTimeSheet-GHP/', color: 'mint' },
+        { name: 'StudyPro', category: 'Learning workflow', repo: 'StudyPro', url: 'https://jakkuazzo.github.io/StudyPro/', color: 'amber' },
+        { name: 'GuyRofe', category: 'Portfolio', repo: 'GuyRofe', url: 'https://jakkuazzo.github.io/GuyRofe/', color: 'blue' },
+        { name: 'TildeSec archive', category: 'Security studio archive', repo: 'tildesec', url: 'https://jakkuazzo.github.io/tildesec/', color: 'ink' }
+    ];
+    container.innerHTML = examples.map(example => `
+      <a class="showcase-card ${example.color}" href="${example.url}" target="_blank" rel="noopener noreferrer">
+        <img loading="lazy" src="https://opengraph.githubassets.com/1/JakkuAzzo/${example.repo}" alt="Preview of ${example.name}" onerror="this.remove()">
+        <span class="showcase-meta">${example.category}</span><strong>${example.name}</strong><span class="showcase-link">View live ↗</span>
+      </a>`).join('');
+}
 
 function initializeEditor() {
     const editorElement = document.getElementById('editor');
