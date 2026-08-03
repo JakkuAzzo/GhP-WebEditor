@@ -157,6 +157,9 @@ function initializeShowcase() {
         { name: 'AutoTimeSheet', category: 'Productivity', repo: 'AutoTimeSheet-GHP', url: 'https://jakkuazzo.github.io/AutoTimeSheet-GHP/', color: 'mint' },
         { name: 'StudyPro', category: 'Learning workflow', repo: 'StudyPro', url: 'https://jakkuazzo.github.io/StudyPro/', color: 'amber' },
         { name: 'GuyRofe', category: 'Portfolio', repo: 'GuyRofe', url: 'https://jakkuazzo.github.io/GuyRofe/', color: 'blue' },
+        { name: 'Catelin Le Franc', category: 'Portfolio', repo: 'catelinlefranc', url: 'https://jakkuazzo.github.io/catelinlefranc/', color: 'coral' },
+        { name: 'Shayonika', category: 'Portfolio', repo: 'shayonika', url: 'https://jakkuazzo.github.io/shayonika/', color: 'violet' },
+        { name: 'Sarah Maslin Bosher', category: 'Portfolio', repo: 'SarahMaslinBosher', url: 'https://jakkuazzo.github.io/SarahMaslinBosher/', color: 'mint' },
         { name: 'TildeSec archive', category: 'Security studio archive', repo: 'tildesec', url: 'https://jakkuazzo.github.io/tildesec/', color: 'ink' }
     ];
     container.innerHTML = examples.map(example => `
