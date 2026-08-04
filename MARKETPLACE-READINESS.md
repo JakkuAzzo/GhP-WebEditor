@@ -8,26 +8,34 @@
 - Environment-only configuration for client ID, client secret, callback URL and webhook secret.
 - A least-privilege starting manifest at `github-app-manifest.json`.
 
-## Intended free deployment endpoint
+## Current deployment endpoint
 
 Use `buildy.bstudiob.co.uk` for the hosted OAuth and webhook service. Keep the root
-`bstudiob.co.uk` on the BStudioB company site. Railway can provide a free
-`*.up.railway.app` domain; the Squarespace DNS zone can then point the `buildy` CNAME at
-that Railway target. Hosting usage still needs monitoring against Railway's current free
-credits/limits.
+`bstudiob.co.uk` on the BStudioB company site. The Railway service is `GhP-WebEditor`
+and its Railway hostname is `ngkim3kp.up.railway.app`.
+
+DNS is now configured in Squarespace:
+
+- CNAME `buildy` → `ngkim3kp.up.railway.app`
+- TXT `_railway-verify.buildy` → the Railway verification value shown in the Railway
+  custom-domain panel
+
+The records resolve publicly. Railway still needs to finish certificate issuance and
+the service must return a healthy response at the custom hostname before production
+OAuth or Marketplace webhooks are enabled. Hosting usage still needs monitoring against
+Railway's current free credits/limits.
 
 ## Still required outside the repository
 
-1. Generate the Railway public domain for the existing Buildy service.
-2. Add `buildy.bstudiob.co.uk` as a CNAME in the domain's DNS and verify HTTPS.
-3. Create the GitHub App under a BStudioB-controlled GitHub organisation.
-4. Set the production callback and webhook URLs.
-5. Complete GitHub App permission review and security testing.
-6. Run `supabase-schema.sql`, add the server-only Supabase variables, and test purchase,
+1. Verify Railway TLS and `/health` at `https://buildy.bstudiob.co.uk`.
+2. Create the GitHub App under a BStudioB-controlled GitHub organisation.
+3. Set the production callback and webhook URLs from `github-app-manifest.json`.
+4. Complete GitHub App permission review and security testing.
+5. Run `supabase-schema.sql`, add the server-only Supabase variables, and test purchase,
    change and cancellation events before enabling paid entitlements.
-7. Prepare privacy, terms, support and status URLs.
-8. Obtain real users/installations and validate the £5 Project Pass offer.
-9. Request verified publisher status and Marketplace review when the thresholds and product
+6. Verify the public privacy, terms, support and status URLs.
+7. Obtain real users/installations and validate the £5 Project Pass offer.
+8. Request verified publisher status and Marketplace review when the thresholds and product
    requirements are met.
 
 ## Important product decision
