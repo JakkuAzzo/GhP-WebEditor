@@ -115,6 +115,7 @@ app.get('/login', (req, res) => {
 app.get('/', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'buildy-landing.html')));
 app.get('/marketplace', (_req, res) => res.redirect(301, '/'));
 app.get('/landing.css', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'landing.css')));
+app.get('/landing-enhancements.css', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'landing-enhancements.css')));
 app.use('/assets', express.static(path.join(__dirname, 'public', 'assets')));
 app.use('/lib/fontawesome', express.static(path.join(__dirname, 'public', 'lib', 'fontawesome')));
 
