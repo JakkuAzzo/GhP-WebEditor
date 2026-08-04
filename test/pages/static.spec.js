@@ -2,7 +2,7 @@ const { test, expect } = require('@playwright/test');
 
 test('shows the product landing page under a GitHub Pages subpath', async ({ page }) => {
   await page.goto('./');
-  await expect(page).toHaveTitle(/GhP WebEditor/);
+  await expect(page).toHaveTitle(/Buildy/);
   await expect(page.getByRole('heading', { name: 'Edit your site. Preview it. Export it.' })).toBeVisible();
   await expect(page.getByRole('link', { name: /Download latest release/ })).toHaveAttribute('href', 'https://github.com/JakkuAzzo/GhP-WebEditor/releases/latest');
   await expect(page.getByRole('link', { name: 'Browse releases' })).toHaveAttribute('href', 'https://github.com/JakkuAzzo/GhP-WebEditor/releases');
@@ -13,7 +13,7 @@ test('sends feedback only to the scoped project FormSubmit address', async ({ pa
   await page.goto('./');
   const form = page.locator('#feedback form');
   await expect(form).toHaveAttribute('action', 'https://formsubmit.co/e0a3287540eff1fab6eab624eb29c561');
-  await expect(form.locator('input[name="_subject"]')).toHaveAttribute('value', 'GhP WebEditor feedback');
+  await expect(form.locator('input[name="_subject"]')).toHaveAttribute('value', 'Buildy feedback');
   await expect(form.getByLabel('Name')).toBeVisible();
   await expect(form.getByLabel('Email')).toBeVisible();
   await expect(form.getByLabel('Message')).toBeVisible();
