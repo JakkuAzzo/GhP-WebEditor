@@ -1,6 +1,6 @@
 {
   "name": "Buildy for GitHub Pages",
-  "url": "https://buildy.bstudiob.co.uk/marketplace",
+  "url": "https://buildy.bstudiob.co.uk/",
   "hook_attributes": {
     "url": "https://buildy.bstudiob.co.uk/api/github/marketplace/webhook"
   },

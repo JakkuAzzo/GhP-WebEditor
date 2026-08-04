@@ -110,6 +110,11 @@ app.get('/login', (req, res) => {
   return sendLoginPage(res);
 });
 
+// The product landing page is the public home of the Buildy subdomain. The editor
+// itself remains protected and is exposed separately at /workspace.
+app.get('/', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'buildy-landing.html')));
+app.get('/marketplace', (_req, res) => res.redirect(301, '/'));
+
 const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 8, standardHeaders: 'draft-7', legacyHeaders: false });
 app.post('/login', loginLimiter, async (req, res) => {
   if (!AUTH_REQUIRED) return res.status(404).end();
@@ -259,6 +264,8 @@ function requireAccount(req, res, next) {
 
 app.use(requireAccount);
 app.use(express.static(path.join(__dirname, 'public'), { index: 'index.html' }));
+
+app.get('/workspace', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
 app.get('/api/account', (req, res) => res.json({ user: req.session.user || null }));
 app.get('/api/plans', (_req, res) => res.json({ plans: PLANS }));

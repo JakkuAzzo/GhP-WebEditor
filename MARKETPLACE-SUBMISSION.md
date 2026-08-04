@@ -39,7 +39,7 @@ it only on a test repository first, then verify read/write behaviour and uninsta
 
 Use the public product page as the listing URL:
 
-`https://buildy.bstudiob.co.uk/marketplace`
+`https://buildy.bstudiob.co.uk/`
 
 Add the logo, feature image, screenshots, description, support email, privacy URL,
 terms URL and pricing. Configure the Marketplace webhook to:

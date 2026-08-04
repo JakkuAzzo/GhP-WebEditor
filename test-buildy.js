@@ -26,10 +26,12 @@ function get(server, route) {
     const pricing = await get(server, '/pricing');
     assert.equal(pricing.status, 200);
     assert.match(pricing.body, /Project Pass/);
+    const landing = await get(server, '/');
+    assert.equal(landing.status, 200);
+    assert.match(landing.body, /Buildy by BStudioB/);
     const marketplace = await get(server, '/marketplace');
-    assert.equal(marketplace.status, 200);
-    assert.match(marketplace.body, /Buildy for GitHub Pages/);
-    assert.match(marketplace.body, /support@bstudiob\.co\.uk/);
+    assert.equal(marketplace.status, 301);
+    assert.equal(marketplace.body, 'Moved Permanently. Redirecting to /');
     const css = await get(server, '/buildy-public.css');
     assert.equal(css.status, 200);
   } finally { server.close(); }

@@ -2,8 +2,7 @@
 
 ## Implemented in this repository
 
-- Public Marketplace-facing product page at `/marketplace`, with plans, support,
-  privacy and terms links available before sign-in.
+- Public product landing page at `/`, with the protected editor separated at `/workspace`.
 - GitHub App OAuth start and callback with a session-bound state value.
 - Encrypted-in-session access-token handoff to the existing GitHub API client.
 - HMAC-SHA256 verification and durable Supabase persistence for Marketplace purchase events.

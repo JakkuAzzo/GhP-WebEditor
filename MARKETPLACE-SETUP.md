@@ -8,7 +8,7 @@ keys must remain in Railway environment variables or a password manager.
 
 - Product: **Buildy for GitHub Pages**
 - Publisher: **BStudioB Ltd**
-- Public URL: `https://buildy.bstudiob.co.uk/marketplace`
+- Public URL: `https://buildy.bstudiob.co.uk/`
 - Support: `support@bstudiob.co.uk`
 - Privacy: `https://buildy.bstudiob.co.uk/privacy`
 - Terms: `https://buildy.bstudiob.co.uk/terms`
