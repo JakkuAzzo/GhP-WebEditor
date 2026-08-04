@@ -114,6 +114,9 @@ app.get('/login', (req, res) => {
 // itself remains protected and is exposed separately at /workspace.
 app.get('/', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'buildy-landing.html')));
 app.get('/marketplace', (_req, res) => res.redirect(301, '/'));
+app.get('/landing.css', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'landing.css')));
+app.use('/assets', express.static(path.join(__dirname, 'public', 'assets')));
+app.use('/lib/fontawesome', express.static(path.join(__dirname, 'public', 'lib', 'fontawesome')));
 
 const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 8, standardHeaders: 'draft-7', legacyHeaders: false });
 app.post('/login', loginLimiter, async (req, res) => {
