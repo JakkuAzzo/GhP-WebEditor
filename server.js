@@ -246,7 +246,11 @@ app.get('/buildy-public.css', (_req, res) => res.sendFile(path.join(__dirname, '
 
 function requireAccount(req, res, next) {
   if (!AUTH_REQUIRED) return next();
-  if (PUBLIC_MODE && req.session.githubAccessToken) return next();
+  if (PUBLIC_MODE) {
+    if (req.session.githubAccessToken) return next();
+    if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'Connect GitHub to continue.' });
+    return res.redirect('/auth/github/start');
+  }
   if (!SESSION_SECRET || !USERS.length) return res.status(503).send('Private beta access has not been configured.');
   if (req.session.user) return next();
   if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'An account is required.' });
