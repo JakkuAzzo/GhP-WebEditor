@@ -2,6 +2,8 @@
 
 ## Implemented in this repository
 
+- Public Marketplace-facing product page at `/marketplace`, with plans, support,
+  privacy and terms links available before sign-in.
 - GitHub App OAuth start and callback with a session-bound state value.
 - Encrypted-in-session access-token handoff to the existing GitHub API client.
 - HMAC-SHA256 verification and durable Supabase persistence for Marketplace purchase events.
@@ -27,7 +29,7 @@ Railway's current free credits/limits.
 
 ## Still required outside the repository
 
-1. Verify Railway TLS and `/health` at `https://buildy.bstudiob.co.uk`.
+1. Verify Railway TLS and `/health` at `https://buildy.bstudiob.co.uk/health`.
 2. Create the GitHub App under a BStudioB-controlled GitHub organisation.
 3. Set the production callback and webhook URLs from `github-app-manifest.json`.
 4. Complete GitHub App permission review and security testing.

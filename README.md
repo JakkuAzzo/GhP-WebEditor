@@ -224,5 +224,5 @@ purchase is required for production use. See [LICENSE](LICENSE) for details.
 
 ## Support
 
-For licensing questions, feature requests, or enterprise support, please contact the
-project maintainer or email `sales@buildy.example`.
+For licensing questions, feature requests, or enterprise support, please email
+`support@bstudiob.co.uk`.
