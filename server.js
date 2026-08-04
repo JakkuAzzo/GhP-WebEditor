@@ -90,7 +90,19 @@ function sendLoginPage(res) {
 }
 
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', access: AUTH_REQUIRED ? (USERS.length ? 'configured' : 'not-configured') : 'open' });
+  res.json({
+    status: 'ok',
+    access: AUTH_REQUIRED ? (USERS.length ? 'configured' : 'not-configured') : 'open',
+    config: {
+      session: Boolean(SESSION_SECRET),
+      users: USERS.length > 0,
+      githubOAuth: Boolean(GITHUB_CLIENT_ID && GITHUB_CLIENT_SECRET && GITHUB_CALLBACK_URL),
+      tokenEncryption: Boolean(TOKEN_ENCRYPTION_KEY),
+      marketplaceWebhook: Boolean(GITHUB_WEBHOOK_SECRET),
+      billingStore: billingStore.configured(),
+      publicMode: PUBLIC_MODE
+    }
+  });
 });
 
 app.get('/login', (req, res) => {

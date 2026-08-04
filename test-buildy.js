@@ -22,6 +22,7 @@ function get(server, route) {
     const health = await get(server, '/health');
     assert.equal(health.status, 200);
     assert.equal(JSON.parse(health.body).status, 'ok');
+    assert.equal(JSON.parse(health.body).config.publicMode, false);
     const pricing = await get(server, '/pricing');
     assert.equal(pricing.status, 200);
     assert.match(pricing.body, /Project Pass/);
