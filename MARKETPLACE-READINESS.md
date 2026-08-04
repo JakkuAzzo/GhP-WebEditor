@@ -9,6 +9,8 @@
 - HMAC-SHA256 verification and durable Supabase persistence for Marketplace purchase events.
 - Environment-only configuration for client ID, client secret, callback URL and webhook secret.
 - A least-privilege starting manifest at `github-app-manifest.json`.
+- The manifest is marked public for Marketplace use; it still requires creation,
+  owner review and publisher verification in GitHub.
 
 ## Current deployment endpoint
 
