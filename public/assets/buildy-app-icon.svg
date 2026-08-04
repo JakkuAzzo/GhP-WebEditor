@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Buildy app icon</title>
+  <desc id="desc">A dark square with a lime and lavender Buildy monogram</desc>
+  <rect width="512" height="512" rx="112" fill="#0d1624"/>
+  <path d="M156 112h122c72 0 116 32 116 84 0 31-17 55-47 68 39 12 61 38 61 75 0 57-47 91-126 91H156V112Zm70 61v67h48c31 0 49-12 49-35 0-22-18-32-49-32h-48Zm0 128v68h59c34 0 54-12 54-35 0-22-20-33-54-33h-59Z" fill="#f5f7ff"/>
+  <path d="M155 414h224" stroke="#d9f15a" stroke-width="24" stroke-linecap="round"/>
+  <circle cx="384" cy="112" r="18" fill="#d9c8ff"/>
+</svg>
