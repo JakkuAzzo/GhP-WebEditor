@@ -25,6 +25,10 @@ function get(server, route) {
     const pricing = await get(server, '/pricing');
     assert.equal(pricing.status, 200);
     assert.match(pricing.body, /Project Pass/);
+    const marketplace = await get(server, '/marketplace');
+    assert.equal(marketplace.status, 200);
+    assert.match(marketplace.body, /Buildy for GitHub Pages/);
+    assert.match(marketplace.body, /support@bstudiob\.co\.uk/);
     const css = await get(server, '/buildy-public.css');
     assert.equal(css.status, 200);
   } finally { server.close(); }
