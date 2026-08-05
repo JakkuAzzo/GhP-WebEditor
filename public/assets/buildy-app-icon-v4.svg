@@ -1,8 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
-  <title id="title">Buildy app icon</title>
-  <desc id="desc">A bold B between code angle brackets</desc>
-  <rect width="512" height="512" rx="112" fill="#0d1624"/>
-  <rect x="24" y="24" width="464" height="464" rx="92" fill="none" stroke="#33445f" stroke-width="10"/>
-  <text x="256" y="330" text-anchor="middle" fill="#f5f7ff" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="190" font-weight="800" letter-spacing="-12">&lt;B/&gt;</text>
-  <rect x="132" y="408" width="248" height="16" rx="8" fill="#d9f15a"/>
-</svg>
