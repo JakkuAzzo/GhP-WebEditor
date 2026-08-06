@@ -23,14 +23,13 @@ DNS is now configured in Squarespace:
 - TXT `_railway-verify.buildy` → the Railway verification value shown in the Railway
   custom-domain panel
 
-The records resolve publicly. Railway still needs to finish certificate issuance and
-the service must return a healthy response at the custom hostname before production
-OAuth or Marketplace webhooks are enabled. Hosting usage still needs monitoring against
-Railway's current free credits/limits.
+The records resolve publicly and the custom hostname currently returns a healthy HTTPS
+response. Keep monitoring certificate renewal and hosting usage against Railway's current
+free credits/limits; do not commit to a paid plan without a deliberate cost decision.
 
 ## Still required outside the repository
 
-1. Verify Railway TLS and `/health` at `https://buildy.bstudiob.co.uk/health`.
+1. Re-check Railway TLS and `/health` after any deployment or DNS change.
 2. Create the GitHub App under a BStudioB-controlled GitHub organisation.
 3. Set the production callback and webhook URLs from `github-app-manifest.json`.
 4. Complete GitHub App permission review and security testing.
