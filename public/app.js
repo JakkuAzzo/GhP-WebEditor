@@ -160,6 +160,7 @@ function initializeShowcase() {
         { name: 'Catelin Le Franc', category: 'Portfolio', repo: 'catelinlefranc', url: 'https://jakkuazzo.github.io/catelinlefranc/', color: 'coral' },
         { name: 'Shayonika', category: 'Portfolio', repo: 'shayonika', url: 'https://jakkuazzo.github.io/shayonika/', color: 'violet' },
         { name: 'Sarah Maslin Bosher', category: 'Portfolio', repo: 'SarahMaslinBosher', url: 'https://jakkuazzo.github.io/SarahMaslinBosher/', color: 'mint' },
+        { name: 'Max Udovichenko', category: 'Portfolio made with Buildy', repo: 'portfolio-website', url: 'https://udovimax.github.io/portfolio-website/', color: 'blue' },
         { name: 'TildeSec archive', category: 'Security studio archive', repo: 'tildesec', url: 'https://jakkuazzo.github.io/tildesec/', color: 'ink' }
     ];
     container.innerHTML = examples.map(example => `
