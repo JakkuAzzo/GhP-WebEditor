@@ -20,7 +20,7 @@ function get(server, route) {
   for (const asset of [
     'public/assets/buildy-icon-v5.png',
     'public/assets/buildy-wordmark-v3-dark.png',
-    'public/assets/demos/portfolio/max-udovichenko.jpg'
+    'public/assets/demos/portfolio/max-udovichenko.png'
   ]) assert.ok(fs.existsSync(path.join(__dirname, asset)), `Missing release asset: ${asset}`);
   assert.equal(PLANS.find(plan => plan.slug === 'project-pass').oneTimePriceGbp, 5);
   assert.equal(PLANS.find(plan => plan.slug === 'client-studio').monthlyPriceGbp, 35);
