@@ -10,3 +10,15 @@
 .showcase figcaption{display:flex;justify-content:space-between;gap:12px;padding:16px 4px 4px;color:var(--muted)}
 .showcase figcaption strong{color:var(--ink)}
 @media(max-width:800px){.showcase-grid{grid-template-columns:1fr}.showcase figure img{height:240px}.showcase figcaption{display:block}.showcase figcaption span{display:block;margin-top:4px}}
+
+/* Keep the mobile header compact: the navigation remains one deliberate,
+   horizontally scrollable row instead of wrapping into a tall broken block. */
+@media(max-width:800px){
+  .site-header{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:14px 16px;padding:16px 20px}
+  .site-header .brand{min-width:0;white-space:nowrap}
+  .site-header .brand-logo{width:min(132px,38vw)}
+  .site-header .button{margin-left:0;white-space:nowrap;min-height:40px;padding-inline:12px;font-size:.86rem}
+  .site-header nav{grid-column:1/-1;order:initial;width:100%;min-width:0;display:flex;justify-content:flex-start;gap:20px;overflow-x:auto;overflow-y:hidden;white-space:nowrap;padding:2px 0 5px;scrollbar-width:none}
+  .site-header nav::-webkit-scrollbar{display:none}
+  .site-header nav a{flex:0 0 auto}
+}
