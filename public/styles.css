@@ -67,12 +67,11 @@ body[data-theme="light"] .header {
 }
 
 .buildy-mark {
-    color: #d9f15a;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-    font-size: 16px;
-    font-weight: 800;
-    letter-spacing: -0.08em;
-    white-space: nowrap;
+    display: block;
+    width: 118px;
+    height: auto;
+    object-fit: contain;
+    flex: 0 0 auto;
 }
 
 .header-left h1 {
