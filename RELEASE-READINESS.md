@@ -16,6 +16,8 @@ details, private keys, or OAuth client secrets.
 - The Railway service is online at `https://buildy.bstudiob.co.uk` and `/health` returns HTTP 200.
 - Supabase schema/RLS is applied and the server-only Supabase variables are configured in Railway.
 - Public privacy, terms, support, security, pricing and status pages exist.
+- Waitlist consent, FormSubmit redirect, CSP allowance and a public success page are implemented.
+- Hosted OAuth/API routes have rate limits, and the token handoff is marked `no-store`.
 - Local automated tests pass with `npm test`.
 
 ## Amber: safe engineering work still to complete
