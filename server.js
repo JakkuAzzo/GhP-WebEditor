@@ -259,7 +259,7 @@ app.post('/api/github/marketplace/webhook', async (req, res) => {
 });
 
 // Public trust and conversion pages remain available before account sign-in.
-for (const page of ['marketplace', 'pricing', 'privacy', 'terms', 'support', 'security', 'status']) {
+for (const page of ['marketplace', 'pricing', 'privacy', 'terms', 'support', 'security', 'status', 'thanks']) {
   app.get(`/${page}`, (_req, res) => res.sendFile(path.join(__dirname, 'public', `${page}.html`)));
 }
 app.get('/buildy-public.css', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'buildy-public.css')));
