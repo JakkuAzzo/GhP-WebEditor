@@ -37,8 +37,12 @@ function get(server, route) {
     assert.equal(landing.status, 200);
     assert.match(landing.body, /Buildy by BStudioB/);
     assert.match(landing.headers['content-security-policy'], /formsubmit\.co/);
+    assert.match(landing.body, /name="consent"/);
+    assert.match(landing.body, /name="_next"/);
     const apiPlans = await get(server, '/api/plans');
     assert.equal(apiPlans.status, 200);
+    const thanks = await get(server, '/thanks');
+    assert.equal(thanks.status, 200);
     const marketplace = await get(server, '/marketplace');
     assert.equal(marketplace.status, 301);
     assert.equal(marketplace.body, 'Moved Permanently. Redirecting to /');
