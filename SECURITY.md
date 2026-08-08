@@ -10,15 +10,21 @@ Currently supporting the latest version of this project.
 
 ## Security Considerations
 
-### GitHub Personal Access Token
+### Hosted mode
 
-This application requires a GitHub Personal Access Token to access the GitHub API. Please note:
+The hosted Buildy service uses GitHub OAuth. The access token is held in the server-side
+session and encrypted before it is persisted in the session store when
+`BUILDY_TOKEN_ENCRYPTION_KEY` is configured. The browser receives only the data needed for
+the current editor session. OAuth uses a session-bound state value to prevent request forgery.
 
-1. **Token Storage**: Tokens are stored in browser localStorage
-2. **Token Transmission**: Tokens are only sent to GitHub's API endpoints (api.github.com)
-3. **Token Permissions**: Only request the minimum required scopes:
-   - `repo`: For reading and writing repository contents
-   - `read:user`: For reading user profile information
+The hosted service requests only the GitHub permissions required by the configured GitHub
+App. The source repository is private and is not used as a public download channel.
+
+### Desktop mode
+
+The downloadable desktop application may accept a user-supplied GitHub token for local use.
+Users should create the narrowest fine-grained token possible, avoid sharing it, and revoke
+it when the project is finished. Desktop credentials remain under the user's local control.
 
 ### Best Practices
 
@@ -28,13 +34,12 @@ This application requires a GitHub Personal Access Token to access the GitHub AP
 4. **Revoke Unused Tokens**: Remove tokens at https://github.com/settings/tokens if no longer needed
 5. **Don't Share Tokens**: Never share your personal access token with others
 
-### Known Issues
+### Runtime protections
 
-#### Rate Limiting (Low Severity)
-
-The development server (server.js) does not implement rate limiting. This is acceptable for local development but should be addressed if deploying to production.
-
-**Mitigation**: This application is designed for local use. If deploying publicly, implement rate limiting middleware such as `express-rate-limit`.
+The hosted service applies rate limits to login, OAuth, API and Marketplace webhook routes.
+It also uses Helmet security headers, a restricted form-action policy, bounded JSON bodies,
+session cookies marked HttpOnly/SameSite, and path validation that rejects symlinks and
+`.git` access from cloned repositories.
 
 #### Dependency Vulnerabilities
 
@@ -64,14 +69,16 @@ Security updates will be released as soon as possible after a vulnerability is c
 
 ## CORS and CSP
 
-The application runs locally and does not implement CORS restrictions. When making API calls to GitHub, standard browser security policies apply.
+The hosted service does not enable broad CORS. Helmet supplies the default content-security
+policy; the only external form destination explicitly allowed is FormSubmit for the public
+waitlist/contact forms.
 
 ## Data Privacy
 
-- No user data is sent to third parties except GitHub API
-- Files are stored locally in browser localStorage
-- No analytics or tracking is implemented
-- No cookies are used
+- Hosted GitHub identity and authorised repository access are processed through GitHub OAuth.
+- Hosted sessions use an HttpOnly cookie; repository clones are temporary and expire after one hour.
+- Desktop projects remain on the user's computer unless the user explicitly exports or uploads them.
+- No analytics or tracking is implemented by Buildy.
 
 ## Secure Development
 
