@@ -41,6 +41,8 @@ function get(server, route) {
     assert.match(landing.body, /name="_next"/);
     const apiPlans = await get(server, '/api/plans');
     assert.equal(apiPlans.status, 200);
+    const stripeWebhook = await get(server, '/api/stripe/webhook');
+    assert.equal(stripeWebhook.status, 404);
     const thanks = await get(server, '/thanks');
     assert.equal(thanks.status, 200);
     const marketplace = await get(server, '/marketplace');

@@ -15,6 +15,7 @@ BUILDY_GITHUB_CLIENT_ID
 BUILDY_GITHUB_CLIENT_SECRET
 BUILDY_GITHUB_CALLBACK_URL=https://buildy.bstudiob.co.uk/auth/github/callback
 BUILDY_GITHUB_WEBHOOK_SECRET
+BUILDY_STRIPE_WEBHOOK_SECRET         # Stripe signing secret for the direct Project Pass webhook
 SUPABASE_URL
 SUPABASE_SERVICE_ROLE_KEY
 NODE_ENV=production
@@ -28,6 +29,7 @@ OAuth. Verify:
 - `GET https://buildy.bstudiob.co.uk/health` → `status: ok` and all required config flags true
 - `/auth/github/start` redirects to GitHub
 - OAuth callback returns to Buildy with a valid session
+- `POST /api/stripe/webhook` rejects unsigned events and accepts only valid Stripe signatures
 
 ## 2. Create the GitHub App
 
@@ -63,3 +65,8 @@ and confirm that support, privacy, terms, refunds and deletion requests are oper
 
 Do not submit while the App is invite-only, the webhook is untested, or the production
 health flags are incomplete.
+
+For the direct Stripe Project Pass, pass the GitHub account identifier as
+`client_reference_id` (or `metadata.github_account_id`) and the plan slug as
+`metadata.plan_slug`. This associates a verified payment with the authenticated Buildy
+account without exposing a secret in the browser.

@@ -18,6 +18,8 @@ details, private keys, or OAuth client secrets.
 - Public privacy, terms, support, security, pricing and status pages exist.
 - Waitlist consent, FormSubmit redirect, CSP allowance and a public success page are implemented.
 - Hosted OAuth/API routes have rate limits, and the token handoff is marked `no-store`.
+- Stripe webhook verification and entitlement persistence are implemented behind server-only
+  configuration; the Supabase migration and a signed test event are still required.
 - Local automated tests pass with `npm test`.
 
 ## Amber: safe engineering work still to complete

@@ -23,6 +23,21 @@ async function recordWebhook({ deliveryId, eventName, payload }) {
   });
   return rows;
 }
+async function recordStripeEvent({ eventId, eventName, payload }) {
+  const payloadHash = crypto.createHash('sha256').update(JSON.stringify(payload)).digest('hex');
+  return request('stripe_events', {
+    method: 'POST',
+    headers: { Prefer: 'resolution=ignore-duplicates,return=minimal' },
+    body: JSON.stringify({ event_id: eventId, event_name: eventName, payload_hash: payloadHash, processing_status: 'received' })
+  });
+}
+async function upsertEntitlement(entitlement) {
+  return request('entitlements', {
+    method: 'POST',
+    headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
+    body: JSON.stringify(entitlement)
+  });
+}
 async function upsertSubscription(subscription) {
   return request('subscriptions', {
     method: 'POST',
@@ -34,4 +49,8 @@ async function subscriptionForAccount(githubAccountId) {
   const rows = await request(`subscriptions?github_account_id=eq.${encodeURIComponent(githubAccountId)}&state=not.eq.cancelled&order=updated_at.desc&limit=1`, { method: 'GET' });
   return rows && rows[0] ? rows[0] : null;
 }
-module.exports = { configured, recordWebhook, upsertSubscription, subscriptionForAccount };
+async function entitlementsForAccount(githubAccountId) {
+  const rows = await request(`entitlements?account_ref=eq.${encodeURIComponent(githubAccountId)}&state=eq.active&order=updated_at.desc`, { method: 'GET' });
+  return rows || [];
+}
+module.exports = { configured, recordWebhook, recordStripeEvent, upsertSubscription, upsertEntitlement, subscriptionForAccount, entitlementsForAccount };
