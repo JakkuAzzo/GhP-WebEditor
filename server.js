@@ -41,7 +41,15 @@ if (AUTH_REQUIRED && !SESSION_SECRET) console.error('BUILDY_SESSION_SECRET is re
 if (AUTH_REQUIRED && !TOKEN_ENCRYPTION_KEY) console.warn('BUILDY_TOKEN_ENCRYPTION_KEY is not set; GitHub tokens will not be persisted securely.');
 
 app.set('trust proxy', 1);
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      // The public waitlist uses FormSubmit; keep every other default Helmet
+      // directive intact while allowing only that specific form destination.
+      formAction: ["'self'", 'https://formsubmit.co']
+    }
+  }
+}));
 app.use(express.json({
   limit: '2mb',
   verify: (req, _res, buffer) => { req.rawBody = Buffer.from(buffer); }
@@ -120,6 +128,9 @@ app.use('/assets', express.static(path.join(__dirname, 'public', 'assets')));
 app.use('/lib/fontawesome', express.static(path.join(__dirname, 'public', 'lib', 'fontawesome')));
 
 const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 8, standardHeaders: 'draft-7', legacyHeaders: false });
+const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 120, standardHeaders: 'draft-7', legacyHeaders: false });
+const githubAuthLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 20, standardHeaders: 'draft-7', legacyHeaders: false });
+app.use('/api', apiLimiter);
 app.post('/login', loginLimiter, async (req, res) => {
   if (!AUTH_REQUIRED) return res.status(404).end();
   if (!SESSION_SECRET || !USERS.length) return res.status(503).json({ error: 'Private beta access is not configured yet.' });
@@ -170,7 +181,7 @@ function decryptToken(value) {
   } catch { return null; }
 }
 
-app.get('/auth/github/start', (req, res) => {
+app.get('/auth/github/start', githubAuthLimiter, (req, res) => {
   if (!GITHUB_CLIENT_ID || !GITHUB_CALLBACK_URL) return res.status(503).send('GitHub App sign-in is not configured.');
   if (AUTH_REQUIRED && !TOKEN_ENCRYPTION_KEY) return res.status(503).send('Secure GitHub token storage is not configured.');
   const state = crypto.randomBytes(24).toString('hex');
@@ -179,7 +190,7 @@ app.get('/auth/github/start', (req, res) => {
   return res.redirect(`https://github.com/login/oauth/authorize?${params}`);
 });
 
-app.get('/auth/github/callback', async (req, res) => {
+app.get('/auth/github/callback', githubAuthLimiter, async (req, res) => {
   if (!GITHUB_CLIENT_ID || !GITHUB_CLIENT_SECRET || !GITHUB_CALLBACK_URL) return res.status(503).send('GitHub App sign-in is not configured.');
   if (!req.query.code || !safeEqual(String(req.query.state || ''), String(req.session.githubOAuthState || ''))) {
     return res.status(400).send('Invalid GitHub sign-in state.');

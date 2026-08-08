@@ -10,7 +10,7 @@ function get(server, route) {
   return new Promise((resolve, reject) => {
     const request = http.get({ port: server.address().port, path: route }, response => {
       let body = ''; response.setEncoding('utf8'); response.on('data', chunk => { body += chunk; });
-      response.on('end', () => resolve({ status: response.statusCode, body }));
+      response.on('end', () => resolve({ status: response.statusCode, body, headers: response.headers }));
     });
     request.on('error', reject);
   });
@@ -36,6 +36,9 @@ function get(server, route) {
     const landing = await get(server, '/');
     assert.equal(landing.status, 200);
     assert.match(landing.body, /Buildy by BStudioB/);
+    assert.match(landing.headers['content-security-policy'], /formsubmit\.co/);
+    const apiPlans = await get(server, '/api/plans');
+    assert.equal(apiPlans.status, 200);
     const marketplace = await get(server, '/marketplace');
     assert.equal(marketplace.status, 301);
     assert.equal(marketplace.body, 'Moved Permanently. Redirecting to /');
