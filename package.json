@@ -13,7 +13,7 @@
     "build": "node scripts/verify-build.js",
     "build:pages": "node scripts/build-pages.js",
     "serve:pages": "node scripts/serve-pages.js",
-    "lint": "node --check server.js && node --check worker.js && node --check main.js && node --check lib/config.js && node --check lib/clone-workspace.js && node --check lib/github-app.js && node --check lib/build-jobs.js && node --check lib/postgres-job-store.js && node --check lib/project-build.js && node --check public/workspace-preview.js && node --check public/app.js && node --check static/static-api.js && node --check scripts/build-pages.js && node --check scripts/serve-pages.js",
+    "lint": "node --check server.js && node --check worker.js && node --check main.js && node --check lib/config.js && node --check lib/artifact-retention.js && node --check lib/clone-workspace.js && node --check lib/github-app.js && node --check lib/build-jobs.js && node --check lib/postgres-job-store.js && node --check lib/project-build.js && node --check public/workspace-preview.js && node --check public/app.js && node --check static/static-api.js && node --check scripts/build-pages.js && node --check scripts/serve-pages.js",
     "pretest": "node scripts/hydrate-tests.js",
     "test": "node --test test/*.test.js",
     "pretest:e2e": "node scripts/hydrate-tests.js",

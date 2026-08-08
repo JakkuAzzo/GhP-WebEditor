@@ -3,6 +3,14 @@ const assert = require('node:assert/strict');
 const { createMemoryJobStore, transitionJob } = require('../lib/build-jobs');
 const { mapRow } = require('../lib/postgres-job-store');
 const { loadConfig } = require('../lib/config');
+const { expiryFor, isExpired } = require('../lib/artifact-retention');
+
+test('artifact retention is bounded and deterministic', () => {
+  const created = 1_000_000;
+  assert.equal(expiryFor(created, 60_000), 1_060_000);
+  assert.equal(isExpired(created, 1_060_000, 60_000), true);
+  assert.throws(() => expiryFor(created, 30_000), /outside allowed bounds/);
+});
 
 test('production configuration prefers Buildy-owned variable names', () => {
   const config = loadConfig({ NODE_ENV: 'production', BUILDY_GITHUB_CLIENT_ID: 'new', GITHUB_APP_CLIENT_ID: 'old', BUILDY_PUBLIC_MODE: 'true' });

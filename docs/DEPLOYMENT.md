@@ -75,3 +75,7 @@ default branch.
 The repository does not yet contain the Postgres-backed worker service or sandboxed
 React source-build pipeline. Those are separate milestones and must be implemented
 before promising hosted source builds or durable multi-user workspaces.
+
+Migration `002_accounts_entitlements.sql` defines the Supabase account, entitlement,
+project-membership, and RLS boundary. It must be applied only in the BStudioB-owned
+Supabase project and verified with tenant-isolation tests before production use.
