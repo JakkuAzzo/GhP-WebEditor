@@ -36,6 +36,16 @@ deployed with `BUILDY_WORKER_MODULE`. When enabled, `/api/jobs` requires a serve
 `BUILDY_JOB_API_TOKEN` bearer token and applies an in-memory rate limit; production
 must replace this with authenticated account/entitlement checks and durable quotas.
 
+The worker contract currently defines only these runtime variables:
+
+- `BUILDY_WORKER_MODULE` — absolute path to an isolated executor module;
+- `BUILDY_WORKER_POLL_MS` — queue polling interval (defaults to 2 seconds);
+- `BUILDY_WORKER_MAX_ATTEMPTS` — bounded retry count (defaults to 3).
+
+There is no repository-defined `DATABASE_URL`, queue URL, or artifact-storage
+variable yet. Do not add one to production until the Supabase/Postgres adapter and
+artifact-retention implementation are wired and tested.
+
 The hosted service must not be exposed until authentication, quotas, monitoring,
 and egress controls are enabled. The service is currently PR-first: it should
 create review branches and pull requests rather than silently updating a user's

@@ -20,6 +20,8 @@ test('health and clone request validation are deterministic', async t => {
   });
   const health = await fetch(`${baseUrl}/api/health`);
   assert.deepEqual(await health.json(), { status: 'ok' });
+  const healthAlias = await fetch(`${baseUrl}/health`);
+  assert.deepEqual(await healthAlias.json(), { status: 'ok' });
   const runtime = await fetch(`${baseUrl}/api/runtime`);
   assert.deepEqual(await runtime.json(), { localOnly: false });
   const blocked = await fetch(`${baseUrl}/api/clone`, {
