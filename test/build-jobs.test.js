@@ -4,6 +4,14 @@ const { createMemoryJobStore, transitionJob } = require('../lib/build-jobs');
 const { mapRow } = require('../lib/postgres-job-store');
 const { loadConfig } = require('../lib/config');
 const { expiryFor, isExpired } = require('../lib/artifact-retention');
+const { hasAccess, requireAccess } = require('../lib/entitlements');
+
+test('entitlements fail closed and honour expiry', () => {
+  const entitlement = { accountId: 'acct', provider: 'stripe', plan: 'project-pass', status: 'active', currentPeriodEnd: 2_000 };
+  assert.equal(hasAccess(entitlement, 1_999), true);
+  assert.equal(hasAccess(entitlement, 2_000), false);
+  assert.throws(() => requireAccess({ ...entitlement, status: 'cancelled' }), /active Buildy entitlement/);
+});
 
 test('artifact retention is bounded and deterministic', () => {
   const created = 1_000_000;

@@ -79,3 +79,7 @@ before promising hosted source builds or durable multi-user workspaces.
 Migration `002_accounts_entitlements.sql` defines the Supabase account, entitlement,
 project-membership, and RLS boundary. It must be applied only in the BStudioB-owned
 Supabase project and verified with tenant-isolation tests before production use.
+
+`lib/entitlements.js` is the canonical fail-closed access rule. Stripe and GitHub
+Marketplace webhook handlers must normalize provider events into the migration's
+entitlement shape before protected downloads or builds call this policy.
