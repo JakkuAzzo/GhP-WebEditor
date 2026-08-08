@@ -14,9 +14,19 @@ if (!modulePath) {
   if (!runtime.store?.claimNext || typeof runtime.execute !== 'function') throw new Error('Worker module must export store.claimNext and execute(job)');
   let stopping = false;
   process.on('SIGTERM', () => { stopping = true; }); process.on('SIGINT', () => { stopping = true; });
+  const sleep = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
   (async function loop() {
     while (!stopping) {
-      const job = await runtime.store.claimNext();
+      let job;
+      try {
+        job = await runtime.store.claimNext();
+      } catch (error) {
+        // A transient database/queue outage must not terminate the worker. The
+        // next poll retries without busy-looping or claiming a second job.
+        console.error('Buildy worker queue poll failed:', error.message);
+        await sleep(intervalMs);
+        continue;
+      }
       if (!job) { await new Promise(resolve => setTimeout(resolve, intervalMs)); continue; }
       try { const artifact = await runtime.execute(job); await runtime.store.update(job.id, 'succeeded', { artifact }); }
       catch (error) {

@@ -142,41 +142,41 @@ function createApp(options = {}) {
 
   app.get(['/health', '/api/health'], (_req, res) => res.json({ status: 'ok' }));
   app.get('/api/runtime', (_req, res) => res.json({ localOnly }));
-  app.get('/api/jobs', (req, res) => {
+  app.get('/api/jobs', async (req, res) => {
     if (!jobsEnabled) return res.status(404).json({ error: 'Build jobs are not enabled' });
     if (!authorizeJob(req, res)) return;
-    return res.json({ jobs: jobStore.list({ projectId: req.query.projectId, limit: req.query.limit }) });
+    return res.json({ jobs: await jobStore.list({ projectId: req.query.projectId, limit: req.query.limit }) });
   });
-  app.post('/api/jobs', (req, res) => {
+  app.post('/api/jobs', async (req, res) => {
     if (!jobsEnabled) return res.status(404).json({ error: 'Build jobs are not enabled' });
     if (!authorizeJob(req, res)) return;
     try {
-      const job = jobStore.create(req.body || {});
+      const job = await jobStore.create(req.body || {});
       return res.status(201).json(job);
     } catch (error) {
       return res.status(400).json({ error: error.message });
     }
   });
-  app.get('/api/jobs/:id', (req, res) => {
+  app.get('/api/jobs/:id', async (req, res) => {
     if (!jobsEnabled) return res.status(404).json({ error: 'Build jobs are not enabled' });
     if (!authorizeJob(req, res)) return;
-    const job = jobStore.get(req.params.id);
+    const job = await jobStore.get(req.params.id);
     return job ? res.json(job) : res.status(404).json({ error: 'Job not found' });
   });
-  app.post('/api/jobs/:id/cancel', (req, res) => {
+  app.post('/api/jobs/:id/cancel', async (req, res) => {
     if (!jobsEnabled) return res.status(404).json({ error: 'Build jobs are not enabled' });
     if (!authorizeJob(req, res)) return;
     try {
-      const job = jobStore.update(req.params.id, 'cancelled');
+      const job = await jobStore.update(req.params.id, 'cancelled');
       return job ? res.json(job) : res.status(404).json({ error: 'Job not found' });
     } catch (error) {
       return res.status(409).json({ error: error.message });
     }
   });
-  app.get('/api/jobs/:id/artifact', (req, res) => {
+  app.get('/api/jobs/:id/artifact', async (req, res) => {
     if (!jobsEnabled) return res.status(404).json({ error: 'Build jobs are not enabled' });
     if (!authorizeJob(req, res)) return;
-    const job = jobStore.get(req.params.id);
+    const job = await jobStore.get(req.params.id);
     if (!job) return res.status(404).json({ error: 'Job not found' });
     if (job.status !== 'succeeded' || !job.artifact) return res.status(409).json({ error: 'Artifact is not available' });
     if (config.publicMode) {

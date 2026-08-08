@@ -54,7 +54,11 @@ test('job store is idempotent and enforces terminal transitions', () => {
   assert.throws(() => transitionJob(done, 'running'), /Cannot transition/);
   const retryable = store.create({ projectId: 'demo-retry', source: 'source' });
   store.update(retryable.id, 'running'); store.update(retryable.id, 'failed', { error: 'worker' });
-  assert.equal(store.retry(retryable.id).status, 'queued');
+  const retried = store.retry(retryable.id);
+  assert.equal(retried.status, 'queued');
+  assert.equal(retried.error, null);
+  assert.equal(retried.startedAt, null);
+  assert.equal(retried.finishedAt, null);
 });
 
 test('jobs API can queue, inspect, and cancel when explicitly enabled', async t => {
@@ -72,4 +76,26 @@ test('jobs API can queue, inspect, and cancel when explicitly enabled', async t 
   assert.equal((await cancelled.json()).status, 'cancelled');
   const artifact = await fetch(`${base}/api/jobs/${job.id}/artifact`, { headers: { authorization: 'Bearer test-token' } });
   assert.equal(artifact.status, 409);
+});
+
+test('jobs API awaits durable asynchronous stores', async t => {
+  const { createApp } = require('../server');
+  const jobs = new Map();
+  const store = {
+    async create(input) { const job = { id: 'durable-1', projectId: input.projectId, source: input.source, status: 'queued' }; jobs.set(job.id, job); return job; },
+    async get(id) { return jobs.get(id) || null; },
+    async list() { return [...jobs.values()]; },
+    async update(id, status) { const job = jobs.get(id); if (!job) return null; job.status = status; return job; }
+  };
+  const server = createApp({ jobsEnabled: true, jobApiToken: 'test-token', jobStore: store }).listen(0, '127.0.0.1');
+  await new Promise(resolve => server.once('listening', resolve));
+  t.after(() => new Promise(resolve => server.close(resolve)));
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const headers = { 'content-type': 'application/json', authorization: 'Bearer test-token' };
+  const created = await fetch(`${base}/api/jobs`, { method: 'POST', headers, body: JSON.stringify({ projectId: 'durable', source: 'source' }) });
+  assert.equal((await created.json()).id, 'durable-1');
+  const listed = await fetch(`${base}/api/jobs`, { headers });
+  assert.deepEqual((await listed.json()).jobs.map(job => job.id), ['durable-1']);
+  const detail = await fetch(`${base}/api/jobs/durable-1`, { headers });
+  assert.equal((await detail.json()).status, 'queued');
 });
