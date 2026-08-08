@@ -45,6 +45,8 @@ test('GitHub App login limits proxy access to repositories selected during insta
   const authorize = new URL(start.headers.get('location'));
   assert.equal(authorize.hostname, 'github.com');
   assert.equal(authorize.searchParams.get('redirect_uri'), `${baseUrl}/api/auth/github/callback`);
+  const approvedCallbackPath = await fetch(`${baseUrl}/auth/github/callback?code=invalid&state=invalid`, { redirect: 'manual' });
+  assert.equal(approvedCallbackPath.status, 400);
   const state = authorize.searchParams.get('state');
   const stateCookie = cookieValue(start.headers.get('set-cookie'), 'ghp_oauth_state');
 
