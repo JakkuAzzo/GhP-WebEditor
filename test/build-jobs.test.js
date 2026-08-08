@@ -1,6 +1,14 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createMemoryJobStore, transitionJob } = require('../lib/build-jobs');
+const { mapRow } = require('../lib/postgres-job-store');
+
+test('Postgres rows map to the public job shape', () => {
+  const job = mapRow({ id: 'j1', project_id: 'demo', source: 'artifact', idempotency_key: 'k', status: 'queued', attempts: 0,
+    created_at: '2026-01-01T00:00:00.000Z', updated_at: '2026-01-01T00:00:01.000Z', started_at: null, finished_at: null, error: null, artifact: null });
+  assert.deepEqual(job, { id: 'j1', projectId: 'demo', source: 'artifact', idempotencyKey: 'k', status: 'queued', attempts: 0,
+    createdAt: 1767225600000, updatedAt: 1767225601000, startedAt: null, finishedAt: null, error: null, artifact: null });
+});
 
 test('job store is idempotent and enforces terminal transitions', () => {
   const store = createMemoryJobStore();
