@@ -38,8 +38,16 @@ hosted service and background infrastructure are added.
 ## Next — background services
 
 - Lean Railway web + worker + Postgres architecture.
-- Durable build-job state machine, cleanup, retries, cancellation, and idempotency.
+- Build-job state machine, cancellation, idempotency, and explicit job API foundation.
 - Isolated, allowlisted React/Vite source builds with bounded resources and artifacts.
+
+### Implementation note
+
+`lib/build-jobs.js` and `/api/jobs` now provide the validated state machine and local
+store. They are deliberately disabled unless `BUILDY_JOBS_ENABLED=true`; production
+must replace the memory store with Postgres before enabling public access. The
+allowlisted command runner in `lib/project-build.js` is suitable for local/staging
+fixtures only and is not a hosted sandbox by itself.
 
 ## Release gates
 

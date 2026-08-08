@@ -29,6 +29,7 @@ const {
   validateCloneUrl
 } = require('./lib/clone-workspace');
 const { registerGitHubRoutes } = require('./lib/github-app');
+const { createMemoryJobStore } = require('./lib/build-jobs');
 
 const MAX_FILE_SIZE = 2 * 1024 * 1024;
 const DEFAULT_CLONES_DIR = path.join(os.tmpdir(), 'buildy-clones');
@@ -67,6 +68,7 @@ function createApp(options = {}) {
   const authStates = options.authStates || new Map();
   const githubSessions = options.githubSessions || new Map();
   const githubFetch = options.githubFetch || global.fetch;
+  const jobStore = options.jobStore || createMemoryJobStore();
   const githubConfig = options.githubConfig || {
     clientId: process.env.GITHUB_APP_CLIENT_ID,
     clientSecret: process.env.GITHUB_APP_CLIENT_SECRET,
@@ -74,6 +76,7 @@ function createApp(options = {}) {
     callbackUrl: process.env.GITHUB_APP_CALLBACK_URL
   };
   const localOnly = options.localOnly ?? (process.env.BUILDY_LOCAL_ONLY ?? process.env.GHP_LOCAL_ONLY) === 'true';
+  const jobsEnabled = options.jobsEnabled ?? process.env.BUILDY_JOBS_ENABLED === 'true';
   const allowedHosts = options.allowedHosts || parseAllowedHosts();
   const cloneRepository = options.cloneRepository || (async (url, dir, cloneOptions) => {
     const git = simpleGit({ timeout: { block: Number(process.env.CLONE_TIMEOUT_MS) || 120_000 } });
@@ -114,6 +117,33 @@ function createApp(options = {}) {
 
   app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
   app.get('/api/runtime', (_req, res) => res.json({ localOnly }));
+  app.get('/api/jobs', (req, res) => {
+    if (!jobsEnabled) return res.status(404).json({ error: 'Build jobs are not enabled' });
+    return res.json({ jobs: jobStore.list({ projectId: req.query.projectId, limit: req.query.limit }) });
+  });
+  app.post('/api/jobs', (req, res) => {
+    if (!jobsEnabled) return res.status(404).json({ error: 'Build jobs are not enabled' });
+    try {
+      const job = jobStore.create(req.body || {});
+      return res.status(201).json(job);
+    } catch (error) {
+      return res.status(400).json({ error: error.message });
+    }
+  });
+  app.get('/api/jobs/:id', (req, res) => {
+    if (!jobsEnabled) return res.status(404).json({ error: 'Build jobs are not enabled' });
+    const job = jobStore.get(req.params.id);
+    return job ? res.json(job) : res.status(404).json({ error: 'Job not found' });
+  });
+  app.post('/api/jobs/:id/cancel', (req, res) => {
+    if (!jobsEnabled) return res.status(404).json({ error: 'Build jobs are not enabled' });
+    try {
+      const job = jobStore.update(req.params.id, 'cancelled');
+      return job ? res.json(job) : res.status(404).json({ error: 'Job not found' });
+    } catch (error) {
+      return res.status(409).json({ error: error.message });
+    }
+  });
   registerGitHubRoutes(app, { authStates, githubSessions, githubFetch, githubConfig });
 
   app.post('/api/preview', (req, res) => {

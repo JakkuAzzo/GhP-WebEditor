@@ -43,6 +43,10 @@ Buildy has three deliberately different delivery modes:
 - `lib/clone-workspace.js` is the filesystem trust boundary.
 - `lib/github-app.js` is the GitHub OAuth/API trust boundary. It checks every
   repository request against repositories granted to the installed GitHub App.
+- `lib/build-jobs.js` owns canonical build-job statuses, transitions, and
+  idempotency rules; `/api/jobs` is explicitly opt-in for local/staging use.
+- `lib/project-build.js` is an allowlisted local/staging runner, not a hosted
+  sandbox. Public builds require a worker and container/VM boundary.
 
 ### Static product site (`static/`, `scripts/`)
 
@@ -62,6 +66,10 @@ Buildy has three deliberately different delivery modes:
 - `.github/workflows/ci.yml`: main/PR unit, browser, Electron, build, and audit gates.
 - `.github/workflows/pages.yml`: static Pages deployment from `github-pages-static`.
 - `.github/workflows/release.yml`: signed desktop artifacts and GitHub release assets.
+
+The job API currently uses a process-local store and is disabled by default. There
+is still no durable database, worker, or hosted build sandbox; those remain release
+gates before public hosted execution.
 
 ## Known structural trade-offs
 

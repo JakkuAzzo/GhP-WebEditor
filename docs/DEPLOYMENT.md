@@ -24,6 +24,10 @@ check. Configure these variables in Railway; never commit values:
 - `CLONE_ALLOWED_HOSTS` (normally the smallest required host set)
 - `CLONE_TIMEOUT_MS`
 
+`BUILDY_JOBS_ENABLED` must remain unset/false until a durable job store and isolated
+worker are deployed. The current `/api/jobs` implementation is for local/staging
+contract tests only and is not an authorization boundary.
+
 The hosted service must not be exposed until authentication, quotas, monitoring,
 and egress controls are enabled. The service is currently PR-first: it should
 create review branches and pull requests rather than silently updating a user's
