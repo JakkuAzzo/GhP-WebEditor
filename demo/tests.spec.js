@@ -28,7 +28,7 @@ test.describe('Buildy Tests', () => {
   });
 
   test('should load the application', async ({ page }) => {
-    await expect(page.locator('h1')).toContainText('GitHub Pages Web Editor');
+    await expect(page.locator('h1')).toContainText('Buildy');
     await expect(page.locator('.welcome-screen')).toBeVisible();
   });
 
