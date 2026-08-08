@@ -39,6 +39,7 @@ hosted service and background infrastructure are added.
 
 - Lean Railway web + worker + Postgres architecture.
 - Build-job state machine, cancellation, idempotency, and explicit job API foundation.
+- Postgres migration, parameterised persistence adapter, and separate worker entrypoint.
 - Isolated, allowlisted React/Vite source builds with bounded resources and artifacts.
 
 ### Implementation note
