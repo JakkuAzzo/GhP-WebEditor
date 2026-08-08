@@ -1,3 +1,14 @@
+/**
+ * Purpose: browser-side editor orchestration for the file workspace.
+ *
+ * Responsibilities: own AppState, bind the DOM contract in index.html, coordinate
+ * local/clone/GitHub file transport, CodeMirror and visual editing, preview/import/
+ * export, and auxiliary collaboration/Copilot/plugin UI.
+ * Constraints: AppState is authoritative over DOM views; secrets never enter
+ * persistent storage; preview and ZIP inputs are untrusted; local-only runtime must
+ * hide account-connected controls. Keep new behavior in a bounded responsibility
+ * section or extract a focused module rather than creating another global helper.
+ */
 const AppState = {
     githubAuthenticated: false,
     copilotToken: null,

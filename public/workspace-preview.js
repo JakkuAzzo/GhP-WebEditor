@@ -1,3 +1,10 @@
+/*
+ * Purpose: canonical workspace-to-preview document composer.
+ * Responsibilities: resolve relative HTML/CSS/module references, inline local
+ * assets, and provide the visual-editor sanitizer/body round-trip helpers.
+ * Constraints: preview content is untrusted; do not weaken sanitization or replace
+ * the iframe/server CSP with same-origin execution.
+ */
 (function exposeWorkspacePreview(global) {
     function normalizeWorkspacePath(currentPath, reference) {
         if (!reference || reference.startsWith('#') || /^(?:[a-z]+:|\/\/)/i.test(reference)) return null;

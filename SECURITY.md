@@ -32,20 +32,15 @@ supported yet.
 
 ### GitHub Pages edition
 
-- The static build has no secret-bearing OAuth exchange and does not embed a GitHub
-  App secret. A GitHub App web flow cannot be implemented safely in static files.
-- Fine-grained personal access tokens are held only in a closure in the current tab.
-  They are never placed in local storage, session storage, URLs, build artifacts, or
-  workflow secrets, and are cleared by logout or page reload.
-- All authenticated traffic is sent to the fixed `https://api.github.com` origin.
-  Repository permissions and selection are enforced by GitHub's token boundary.
-- The static artifact self-hosts its JavaScript, fonts, and editor dependencies and
-  includes a restrictive meta content policy. Project previews remain in an iframe
-  with scripts allowed but same-origin access withheld, so preview code cannot read
-  the parent page's token closure.
-- Anyone who can execute script in the parent editor page could act with the
-  in-memory token. Keep the Pages repository and deployment workflow protected,
-  review dependency changes, and revoke a token immediately if exposure is suspected.
+- The current `github-pages-static` artifact is a product/download site, not an
+  authenticated editor. It contains no PAT, OAuth exchange, GitHub App secret, or
+  privileged GitHub API client.
+- The static site links users to desktop/server workflows for account-connected
+  publishing and uses a scoped FormSubmit feedback action. Keep the Pages workflow
+  and landing repository protected from unreviewed script/dependency changes.
+- The editor preview and credential-bearing server paths are not shipped in the
+  static artifact. If a future static editor is proposed, it requires a new threat
+  model and review rather than restoring the old browser-held-token design.
 
 ## Deployment limitations
 
@@ -60,8 +55,8 @@ token. Configure the app with Contents read/write and Pages read, and select the
 narrowest set of repositories during installation. Sessions are process-local and
 expire after eight hours or logout. Authenticated clone push is not implemented.
 
-In the GitHub Pages edition, API calls originate from the user's browser instead.
-Git cloning, local Git commits, and the server-mediated GitHub App flow are disabled.
+In the GitHub Pages edition, Git cloning, local Git commits, and the server-mediated
+GitHub App flow are disabled because only the product/download site is shipped.
 
 ## Verification
 

@@ -1,3 +1,9 @@
+/**
+ * Purpose: minimal local server for testing the generated Pages artifact.
+ * Responsibilities: serve dist/ under an optional BASE_PATH with safe MIME types
+ * and traversal rejection.
+ * Constraints: this is a test/development server, not a production multi-user API.
+ */
 const fs = require('fs');
 const http = require('http');
 const path = require('path');

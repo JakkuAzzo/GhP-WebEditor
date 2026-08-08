@@ -1,5 +1,11 @@
 # Future Enhancements
 
+> This is a historical backlog, not an authoritative implementation plan. Check
+> `README.md`, `docs/ARCHITECTURE.md`, and `AGENTS.md` before starting an item:
+> several entries (notably automated API testing, server-side token sessions, and
+> the current local-only release model) have since changed or been deliberately
+> deferred for security reasons.
+
 ## Git & Repository Management
 
 ### 1. Branch Switching for Clones

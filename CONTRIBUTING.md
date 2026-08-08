@@ -23,17 +23,23 @@ Thank you for your interest in contributing to this project!
 
 ## Project Structure
 
+The architecture and test ownership map live in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+The root [`AGENTS.md`](AGENTS.md) records security and module-boundary constraints.
+
 ```
 GhP-WebEditor/
-├── public/              # Frontend files
+├── public/              # Browser editor UI and preview composer
 │   ├── index.html      # Main HTML interface
 │   ├── styles.css      # Application styles
 │   ├── app.js          # Application logic
-│   └── lib/            # Vendor libraries (auto-generated)
-├── main.js             # Electron main process
-├── server.js           # Express web server
-├── setup-libs.js       # Library setup script (Node)
-├── setup-libs.sh       # Library setup script (Bash)
+│   └── lib/             # Vendor libraries (generated/ignored)
+├── lib/                 # Clone/filesystem and optional GitHub App boundaries
+├── static/              # Credential-free GitHub Pages product site
+├── scripts/             # Pages build/serve and verification scripts
+├── test/                # Node API, security, preview, Electron, and Pages tests
+├── demo/                # Playwright editor workflows and demonstrations
+├── docs/ARCHITECTURE.md # Subsystem/data-flow map
+├── AGENTS.md            # AI-agent safety and ownership rules
 ├── package.json        # Dependencies and scripts
 └── README.md           # Documentation
 ```
@@ -47,11 +53,14 @@ GhP-WebEditor/
 
 2. Make your changes
 
-3. Test your changes:
+3. Test your changes (use the narrowest relevant command while iterating, then the
+   full gate before review):
    ```bash
-   npm start
-   # OR
-   npm run electron
+   npm run lint
+   npm test
+   npm run test:e2e
+   npm run test:electron
+   npm run test:pages
    ```
 
 4. Commit your changes:
@@ -76,7 +85,11 @@ GhP-WebEditor/
 
 ## Testing
 
-Currently, the project uses manual testing. Contributions to add automated tests are welcome!
+Automated Node, browser, Electron, Pages, build, and dependency-audit checks are
+part of the repository. Add regression coverage for behavior changes; see
+`docs/ARCHITECTURE.md` and `demo/README.md` for the test ownership map. Manual GUI
+scripts remain useful for exploratory checks but are not a substitute for the
+automated gate.
 
 ## Reporting Issues
 
@@ -97,4 +110,6 @@ Feature requests are welcome! Please open an issue describing:
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the MIT License.
+This repository is marked `Commercial` in `package.json` and `LICENSE`. Contributions
+must follow the repository's current license terms; do not describe the project as
+MIT-licensed unless the maintainer changes that policy explicitly.

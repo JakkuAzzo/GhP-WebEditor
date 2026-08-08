@@ -1,3 +1,11 @@
+/*
+ * Purpose: mark the GitHub Pages product site as a credential-free local-only mode.
+ * Responsibilities: update landing/editor copy and disable clone controls in the
+ * static artifact.
+ * Constraints: this file must never store or proxy PATs, OAuth secrets, or privileged
+ * GitHub API requests; secure account-connected publishing belongs to a future
+ * server/desktop release.
+ */
 (function installStaticLocalMode(global) {
     'use strict';
 

@@ -1,3 +1,16 @@
+/**
+ * Purpose: compose and serve the editor's local/server runtime.
+ *
+ * Responsibilities:
+ * - Serve first-party editor assets and dependency bundles.
+ * - Expose bounded preview, clone, local Git, and optional GitHub App routes.
+ * - Keep registries and security-sensitive sessions process-local.
+ *
+ * Constraints: route handlers must use the validators in lib/clone-workspace.js;
+ * preview content is untrusted; public hosted use requires authentication and
+ * operational controls that are intentionally absent from the local v1 server.
+ * Relationships: main.js owns Electron startup; public/app.js is the browser client.
+ */
 const express = require('express');
 const path = require('path');
 const fs = require('fs');

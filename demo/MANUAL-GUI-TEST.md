@@ -70,9 +70,9 @@ Open http://localhost:3000 in your browser
 4. Switch back to code mode
 
 #### 9. Export Project
-1. Click the **📦 Export** button
-2. Choose "JSON Export" from the dropdown
-3. Download the file
+1. Click the **Download** button
+2. Save the generated `github-pages-site.zip`
+3. Extract the archive
 4. Verify it contains all your files and changes
 
 ### ✅ Expected Results
@@ -86,7 +86,7 @@ Open http://localhost:3000 in your browser
 | Tabs | Multiple files can be open simultaneously | ⬜ |
 | Search | File tree filters based on search query | ⬜ |
 | GUI Mode | Visual editing mode available (if implemented) | ⬜ |
-| Export | Project can be downloaded as JSON | ⬜ |
+| Export | Project can be downloaded as a ZIP | ⬜ |
 
 ### 🐛 Known Issues to Check
 

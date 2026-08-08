@@ -1,3 +1,12 @@
+/**
+ * Purpose: Electron main-process entry point for the downloadable local editor.
+ *
+ * Responsibilities: start the loopback server, create the isolated BrowserWindow,
+ * and restrict navigation/external links.
+ * Constraints: keep GHP_LOCAL_ONLY=true for v1; never move renderer/editor state or
+ * GitHub credentials into this process; preserve context isolation, sandboxing, and
+ * disabled Node integration.
+ */
 const { app, BrowserWindow, shell } = require('electron');
 const { startServer } = require('./server');
 

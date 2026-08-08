@@ -1,3 +1,11 @@
+/**
+ * Purpose: produce the deployable GitHub Pages product artifact in dist/.
+ * Responsibilities: copy the static landing site and self-hosted assets, rewrite
+ * library paths for a Pages subpath, add a restrictive policy, and verify required
+ * outputs.
+ * Constraints: dist/ is generated; do not copy the editor runtime or credentials
+ * into this artifact.
+ */
 const fs = require('fs');
 const path = require('path');
 
