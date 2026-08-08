@@ -156,6 +156,17 @@ function createApp(options = {}) {
       return res.status(409).json({ error: error.message });
     }
   });
+  app.get('/api/jobs/:id/artifact', (req, res) => {
+    if (!jobsEnabled) return res.status(404).json({ error: 'Build jobs are not enabled' });
+    if (!authorizeJob(req, res)) return;
+    const job = jobStore.get(req.params.id);
+    if (!job) return res.status(404).json({ error: 'Job not found' });
+    if (job.status !== 'succeeded' || !job.artifact) return res.status(409).json({ error: 'Artifact is not available' });
+    // The local contract exposes metadata only. A production download must be
+    // backed by an entitlement-checked, expiring object-storage URL.
+    if (!job.artifact.downloadUrl) return res.status(501).json({ error: 'Artifact storage is not configured' });
+    return res.redirect(302, job.artifact.downloadUrl);
+  });
   registerGitHubRoutes(app, { authStates, githubSessions, githubFetch, githubConfig });
 
   app.post('/api/preview', (req, res) => {

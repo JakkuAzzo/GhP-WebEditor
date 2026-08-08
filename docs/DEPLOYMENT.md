@@ -36,6 +36,10 @@ deployed with `BUILDY_WORKER_MODULE`. When enabled, `/api/jobs` requires a serve
 `BUILDY_JOB_API_TOKEN` bearer token and applies an in-memory rate limit; production
 must replace this with authenticated account/entitlement checks and durable quotas.
 
+`GET /api/jobs/:id/artifact` is fail-closed until object storage and entitlement
+checks are configured. It never serves local filesystem paths; production must return
+an expiring, entitlement-checked object-storage URL.
+
 The worker contract currently defines only these runtime variables:
 
 - `BUILDY_WORKER_MODULE` — absolute path to an isolated executor module;

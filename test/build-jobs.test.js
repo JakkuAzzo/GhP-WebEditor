@@ -44,4 +44,6 @@ test('jobs API can queue, inspect, and cancel when explicitly enabled', async t 
   const job = await created.json();
   const cancelled = await fetch(`${base}/api/jobs/${job.id}/cancel`, { method: 'POST', headers: { authorization: 'Bearer test-token' } });
   assert.equal((await cancelled.json()).status, 'cancelled');
+  const artifact = await fetch(`${base}/api/jobs/${job.id}/artifact`, { headers: { authorization: 'Bearer test-token' } });
+  assert.equal(artifact.status, 409);
 });
