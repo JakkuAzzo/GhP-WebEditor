@@ -5,6 +5,16 @@ const { mapRow } = require('../lib/postgres-job-store');
 const { loadConfig } = require('../lib/config');
 const { expiryFor, isExpired } = require('../lib/artifact-retention');
 const { hasAccess, requireAccess } = require('../lib/entitlements');
+const { verifyGitHubSignature, verifyStripeSignature } = require('../lib/webhook-signatures');
+
+test('webhook signatures verify raw payloads and reject stale Stripe events', () => {
+  const crypto = require('node:crypto'); const raw = '{"id":"evt"}'; const secret = 'secret';
+  const github = `sha256=${crypto.createHmac('sha256', secret).update(raw).digest('hex')}`;
+  assert.equal(verifyGitHubSignature(raw, github, secret), true);
+  const timestamp = 1_700_000_000; const stripe = crypto.createHmac('sha256', secret).update(`${timestamp}.${raw}`).digest('hex');
+  assert.equal(verifyStripeSignature(raw, `t=${timestamp},v1=${stripe}`, secret, 300, timestamp), true);
+  assert.equal(verifyStripeSignature(raw, `t=${timestamp - 1000},v1=${stripe}`, secret, 300, timestamp), false);
+});
 
 test('entitlements fail closed and honour expiry', () => {
   const entitlement = { accountId: 'acct', provider: 'stripe', plan: 'project-pass', status: 'active', currentPeriodEnd: 2_000 };

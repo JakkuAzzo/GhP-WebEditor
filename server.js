@@ -75,6 +75,7 @@ function createApp(options = {}) {
   const localOnly = options.localOnly ?? (process.env.BUILDY_LOCAL_ONLY ?? process.env.GHP_LOCAL_ONLY) === 'true';
   const jobsEnabled = options.jobsEnabled ?? config.jobsEnabled;
   const jobApiToken = options.jobApiToken ?? config.jobApiToken;
+  const entitlementResolver = options.entitlementResolver || null;
   const jobRate = new Map();
   function authorizeJob(req, res) {
     if (localOnly) return true;
@@ -162,6 +163,10 @@ function createApp(options = {}) {
     const job = jobStore.get(req.params.id);
     if (!job) return res.status(404).json({ error: 'Job not found' });
     if (job.status !== 'succeeded' || !job.artifact) return res.status(409).json({ error: 'Artifact is not available' });
+    if (config.publicMode) {
+      if (!entitlementResolver) return res.status(503).json({ error: 'Entitlement service is not configured' });
+      if (!entitlementResolver(req, job)) return res.status(403).json({ error: 'Active entitlement required' });
+    }
     // The local contract exposes metadata only. A production download must be
     // backed by an entitlement-checked, expiring object-storage URL.
     if (!job.artifact.downloadUrl) return res.status(501).json({ error: 'Artifact storage is not configured' });
