@@ -20,6 +20,7 @@ const GITHUB_CLIENT_ID = process.env.BUILDY_GITHUB_CLIENT_ID;
 const GITHUB_CLIENT_SECRET = process.env.BUILDY_GITHUB_CLIENT_SECRET;
 const GITHUB_CALLBACK_URL = process.env.BUILDY_GITHUB_CALLBACK_URL;
 const GITHUB_WEBHOOK_SECRET = process.env.BUILDY_GITHUB_WEBHOOK_SECRET;
+const STRIPE_WEBHOOK_SECRET = process.env.BUILDY_STRIPE_WEBHOOK_SECRET;
 const PUBLIC_MODE = process.env.BUILDY_PUBLIC_MODE === 'true';
 const TOKEN_ENCRYPTION_KEY = process.env.BUILDY_TOKEN_ENCRYPTION_KEY;
 const CLONE_TTL_MS = 60 * 60 * 1000;
@@ -107,6 +108,7 @@ app.get('/health', (req, res) => {
       githubOAuth: Boolean(GITHUB_CLIENT_ID && GITHUB_CLIENT_SECRET && GITHUB_CALLBACK_URL),
       tokenEncryption: Boolean(TOKEN_ENCRYPTION_KEY),
       marketplaceWebhook: Boolean(GITHUB_WEBHOOK_SECRET),
+      stripeWebhook: Boolean(STRIPE_WEBHOOK_SECRET),
       billingStore: billingStore.configured(),
       publicMode: PUBLIC_MODE
     }
@@ -258,6 +260,47 @@ app.post('/api/github/marketplace/webhook', async (req, res) => {
   }
 });
 
+function verifyStripeSignature(header, rawBody) {
+  if (!STRIPE_WEBHOOK_SECRET || !header || !rawBody) return false;
+  const parts = Object.fromEntries(String(header).split(',').map(part => part.split('=')));
+  const timestamp = Number(parts.t);
+  if (!timestamp || Math.abs(Date.now() / 1000 - timestamp) > 300 || !parts.v1) return false;
+  const expected = crypto.createHmac('sha256', STRIPE_WEBHOOK_SECRET).update(`${parts.t}.${rawBody}`).digest('hex');
+  return safeEqual(parts.v1, expected);
+}
+
+app.post('/api/stripe/webhook', async (req, res) => {
+  if (!STRIPE_WEBHOOK_SECRET) return res.status(503).json({ error: 'Stripe webhook is not configured.' });
+  if (!verifyStripeSignature(req.get('stripe-signature'), req.rawBody)) return res.status(401).json({ error: 'Invalid Stripe signature.' });
+  if (!billingStore.configured()) return res.status(503).json({ error: 'Billing store is not configured.' });
+  const event = req.body || {};
+  try {
+    await billingStore.recordStripeEvent({ eventId: String(event.id || ''), eventName: String(event.type || 'unknown'), payload: event });
+    if (event.type === 'checkout.session.completed') {
+      const session = event.data?.object || {};
+      const accountRef = String(session.client_reference_id || session.metadata?.github_account_id || '');
+      const planSlug = String(session.metadata?.plan_slug || 'project-pass');
+      if (accountRef) {
+        await billingStore.upsertEntitlement({
+          entitlement_id: `stripe:${session.id}`,
+          account_ref: accountRef,
+          email: session.customer_details?.email || session.customer_email || null,
+          plan_slug: planSlug,
+          provider: 'stripe',
+          provider_reference: String(session.payment_intent || session.id),
+          state: 'active',
+          expires_at: null,
+          updated_at: new Date().toISOString()
+        });
+      }
+    }
+    return res.status(204).end();
+  } catch (error) {
+    console.error('Stripe webhook persistence failed:', error.message);
+    return res.status(500).json({ error: 'Stripe event could not be persisted.' });
+  }
+});
+
 // Public trust and conversion pages remain available before account sign-in.
 for (const page of ['marketplace', 'pricing', 'privacy', 'terms', 'support', 'security', 'status', 'thanks']) {
   app.get(`/${page}`, (_req, res) => res.sendFile(path.join(__dirname, 'public', `${page}.html`)));
@@ -289,7 +332,7 @@ app.get('/api/billing/me', async (req, res) => {
   try {
     const githubAccountId = req.session.githubAccountId;
     if (!githubAccountId) return res.json({ configured: true, subscription: null });
-    return res.json({ configured: true, subscription: await billingStore.subscriptionForAccount(githubAccountId) });
+    return res.json({ configured: true, subscription: await billingStore.subscriptionForAccount(githubAccountId), entitlements: await billingStore.entitlementsForAccount(githubAccountId) });
   } catch (error) { return res.status(502).json({ error: error.message }); }
 });
 app.get('/api/github/token', (req, res) => {
