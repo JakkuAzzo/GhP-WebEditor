@@ -15,7 +15,8 @@ Currently supporting the latest version of this project.
 The hosted Buildy service uses GitHub OAuth. The access token is held in the server-side
 session and encrypted before it is persisted in the session store when
 `BUILDY_TOKEN_ENCRYPTION_KEY` is configured. The browser receives only the data needed for
-the current editor session. OAuth uses a session-bound state value to prevent request forgery.
+the current editor session; the token response is explicitly marked `no-store`. OAuth uses a
+session-bound state value to prevent request forgery.
 
 The hosted service requests only the GitHub permissions required by the configured GitHub
 App. The source repository is private and is not used as a public download channel.

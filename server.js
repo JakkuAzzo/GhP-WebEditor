@@ -296,6 +296,7 @@ app.get('/api/github/token', (req, res) => {
   if (!req.session.githubAccessToken) return res.status(404).json({ error: 'GitHub App is not connected.' });
   const token = decryptToken(req.session.githubAccessToken);
   if (!token) return res.status(500).json({ error: 'GitHub session token could not be decrypted.' });
+  res.set('Cache-Control', 'no-store');
   return res.json({ token });
 });
 
