@@ -1,6 +1,6 @@
-# GhP WebEditor agent guide
+# Buildy agent guide
 
-This repository contains a local-first GitHub Pages site editor. Read this file
+This repository contains the Buildy local-first GitHub Pages site editor. Read this file
 before changing code; it records the boundaries that are easy to violate when
 working from a single large browser module.
 

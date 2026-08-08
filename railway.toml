@@ -1,0 +1,12 @@
+# Buildy hosted service defaults. Production deployment belongs to the BStudioB
+# Railway workspace; the current personal workspace remains staging only.
+
+[build]
+builder = "RAILPACK"
+
+[deploy]
+startCommand = "npm start"
+healthcheckPath = "/api/health"
+healthcheckTimeout = 30
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10

@@ -108,7 +108,7 @@ button {
 }
 `,
     js: `document.addEventListener('DOMContentLoaded', () => {
-    console.log('Welcome to GhP WebEditor Pro!');
+    console.log('Welcome to Buildy!');
 });`,
     md: `# Welcome
 
@@ -1999,7 +1999,7 @@ async function sendCopilotPrompt() {
             body: JSON.stringify({
                 model: 'gpt-4o-mini',
                 messages: [
-                    { role: 'system', content: 'You are GitHub Copilot inside GhP WebEditor.' },
+                    { role: 'system', content: 'You are GitHub Copilot inside Buildy.' },
                     { role: 'user', content: prompt }
                 ]
             })

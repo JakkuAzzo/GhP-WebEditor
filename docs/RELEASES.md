@@ -1,6 +1,6 @@
-# Desktop releases
+# Buildy desktop releases
 
-GhP WebEditor v1 is a local desktop application. It edits website files in the
+Buildy v1 is a local desktop application. It edits website files in the
 workspace, previews them locally, and exports a ZIP for the user to upload to
 their GitHub Pages repository themselves.
 

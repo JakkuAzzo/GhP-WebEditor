@@ -1,6 +1,6 @@
 # Architecture map
 
-GhP WebEditor has three deliberately different delivery modes:
+Buildy has three deliberately different delivery modes:
 
 | Mode | Entry point | Purpose | GitHub credentials |
 | --- | --- | --- | --- |

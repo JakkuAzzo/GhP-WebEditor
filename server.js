@@ -31,7 +31,7 @@ const {
 const { registerGitHubRoutes } = require('./lib/github-app');
 
 const MAX_FILE_SIZE = 2 * 1024 * 1024;
-const DEFAULT_CLONES_DIR = path.join(os.tmpdir(), 'ghp-webeditor-clones');
+const DEFAULT_CLONES_DIR = path.join(os.tmpdir(), 'buildy-clones');
 
 function bufferedStatic(root, options = {}) {
   const resolvedRoot = path.resolve(root);
@@ -73,7 +73,7 @@ function createApp(options = {}) {
     slug: process.env.GITHUB_APP_SLUG,
     callbackUrl: process.env.GITHUB_APP_CALLBACK_URL
   };
-  const localOnly = options.localOnly ?? process.env.GHP_LOCAL_ONLY === 'true';
+  const localOnly = options.localOnly ?? (process.env.BUILDY_LOCAL_ONLY ?? process.env.GHP_LOCAL_ONLY) === 'true';
   const allowedHosts = options.allowedHosts || parseAllowedHosts();
   const cloneRepository = options.cloneRepository || (async (url, dir, cloneOptions) => {
     const git = simpleGit({ timeout: { block: Number(process.env.CLONE_TIMEOUT_MS) || 120_000 } });

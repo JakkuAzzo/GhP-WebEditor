@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-GhP WebEditor is pre-release software. Security fixes currently target the latest
+Buildy is pre-release software. Security fixes currently target the latest
 commit on `main` and the `github-pages-static` branch; no production release line is
 supported yet.
 

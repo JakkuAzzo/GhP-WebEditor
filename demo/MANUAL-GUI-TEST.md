@@ -1,4 +1,4 @@
-# Manual GUI Editing Test for GhP-WebEditor
+# Manual GUI Editing Test for Buildy
 
 ## Test Scenario: Clone, Edit, and Preview GuyRofe.git
 

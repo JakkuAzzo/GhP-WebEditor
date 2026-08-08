@@ -1,9 +1,9 @@
-# GhP WebEditor
+# Buildy
 
-GhP WebEditor helps people edit GitHub Pages sites with code or visual tools,
+Buildy helps people edit GitHub Pages sites with code or visual tools,
 preview the result, and export a complete website ZIP ready to upload.
 
-> **Release model:** GitHub Pages hosts the public product site; macOS and Windows
+> **Release model:** GitHub Pages hosts the public Buildy product site; macOS and Windows
 > desktop builds are local/ZIP-first. Copilot, collaboration, and visual editing remain
 > experimental. Third-party plugins are disabled until they have a security sandbox.
 
@@ -241,7 +241,7 @@ against the deployed Pages URL.
 
 ## License
 
-This project is distributed under the **GhP WebEditor Commercial License**. A valid
+This project is distributed under the **Buildy Commercial License**. A valid
 purchase is required for production use. See [LICENSE](LICENSE) for details.
 
 ## Support

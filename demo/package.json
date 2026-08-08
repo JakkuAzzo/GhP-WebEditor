@@ -1,7 +1,7 @@
 {
-  "name": "ghp-webeditor-demo",
+  "name": "buildy-demo",
   "version": "1.0.0",
-  "description": "Automated demo and testing for GhP WebEditor",
+  "description": "Automated demo and testing for Buildy",
   "type": "module",
   "scripts": {
     "demo": "node sports-demo.js",

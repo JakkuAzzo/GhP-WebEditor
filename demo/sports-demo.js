@@ -146,7 +146,7 @@ const SPORTS_SITE = {
             </div>
         </div>
         <div class="footer-bottom">
-            <p>&copy; 2025 Sports Central. Built with GhP WebEditor.</p>
+            <p>&copy; 2025 Sports Central. Built with Buildy.</p>
         </div>
     </footer>
 </body>
@@ -592,7 +592,7 @@ document.head.appendChild(style);`
 };
 
 async function runDemo() {
-  console.log('🚀 Starting GhP WebEditor Sports Demo...\n');
+  console.log('🚀 Starting Buildy Sports Demo...\n');
   
   const browser = await chromium.launch({ 
     headless: false,
@@ -606,7 +606,7 @@ async function runDemo() {
   const page = await context.newPage();
   
   try {
-    console.log('📱 Opening GhP-WebEditor...');
+  console.log('📱 Opening Buildy...');
     await page.goto('http://localhost:3000', { waitUntil: 'networkidle' });
     await page.waitForTimeout(2000);
     

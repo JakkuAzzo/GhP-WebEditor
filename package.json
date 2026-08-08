@@ -1,5 +1,5 @@
 {
-  "name": "ghp-webeditor",
+  "name": "buildy",
   "version": "0.1.0",
   "description": "A web-first editor for GitHub Pages projects",
   "main": "main.js",
@@ -41,8 +41,8 @@
     "simple-git": "^3.24.0"
   },
   "build": {
-    "appId": "com.jakkuazzo.ghpwebeditor",
-    "productName": "GhP WebEditor",
+    "appId": "com.jakkuazzo.buildy",
+    "productName": "Buildy",
     "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
     "directories": {
       "output": "release"
