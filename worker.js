@@ -4,6 +4,7 @@
  */
 const path = require('path');
 const intervalMs = Math.max(250, Number(process.env.BUILDY_WORKER_POLL_MS) || 2000);
+const maxAttempts = Math.max(1, Number(process.env.BUILDY_WORKER_MAX_ATTEMPTS) || 3);
 const modulePath = process.env.BUILDY_WORKER_MODULE;
 if (!modulePath) {
   console.error('BUILDY_WORKER_MODULE is required; refusing to run without an isolated executor');
@@ -18,7 +19,10 @@ if (!modulePath) {
       const job = await runtime.store.claimNext();
       if (!job) { await new Promise(resolve => setTimeout(resolve, intervalMs)); continue; }
       try { const artifact = await runtime.execute(job); await runtime.store.update(job.id, 'succeeded', { artifact }); }
-      catch (error) { await runtime.store.update(job.id, 'failed', { error: error.message }); }
+      catch (error) {
+        await runtime.store.update(job.id, 'failed', { error: error.message });
+        if (job.attempts < maxAttempts && runtime.store.retry) await runtime.store.retry(job.id);
+      }
     }
   }()).catch(error => { console.error('Buildy worker stopped:', error); process.exitCode = 1; });
 }

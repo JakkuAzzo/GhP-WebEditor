@@ -30,6 +30,7 @@ const {
 } = require('./lib/clone-workspace');
 const { registerGitHubRoutes } = require('./lib/github-app');
 const { createMemoryJobStore } = require('./lib/build-jobs');
+const { loadConfig } = require('./lib/config');
 
 const MAX_FILE_SIZE = 2 * 1024 * 1024;
 const DEFAULT_CLONES_DIR = path.join(os.tmpdir(), 'buildy-clones');
@@ -62,6 +63,7 @@ function bufferedStatic(root, options = {}) {
 
 function createApp(options = {}) {
   const app = express();
+  const config = loadConfig(options.env || process.env);
   const clonesDir = options.clonesDir || DEFAULT_CLONES_DIR;
   const cloneRegistry = options.cloneRegistry || new Map();
   const previewRegistry = options.previewRegistry || new Map();
@@ -69,14 +71,20 @@ function createApp(options = {}) {
   const githubSessions = options.githubSessions || new Map();
   const githubFetch = options.githubFetch || global.fetch;
   const jobStore = options.jobStore || createMemoryJobStore();
-  const githubConfig = options.githubConfig || {
-    clientId: process.env.GITHUB_APP_CLIENT_ID,
-    clientSecret: process.env.GITHUB_APP_CLIENT_SECRET,
-    slug: process.env.GITHUB_APP_SLUG,
-    callbackUrl: process.env.GITHUB_APP_CALLBACK_URL
-  };
+  const githubConfig = options.githubConfig || config.github;
   const localOnly = options.localOnly ?? (process.env.BUILDY_LOCAL_ONLY ?? process.env.GHP_LOCAL_ONLY) === 'true';
-  const jobsEnabled = options.jobsEnabled ?? process.env.BUILDY_JOBS_ENABLED === 'true';
+  const jobsEnabled = options.jobsEnabled ?? config.jobsEnabled;
+  const jobApiToken = options.jobApiToken ?? config.jobApiToken;
+  const jobRate = new Map();
+  function authorizeJob(req, res) {
+    if (localOnly) return true;
+    const supplied = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+    if (!jobApiToken || supplied !== jobApiToken) { res.status(401).json({ error: 'Authenticated build access required' }); return false; }
+    const now = Date.now(); const key = req.ip || req.socket.remoteAddress || 'unknown';
+    const recent = (jobRate.get(key) || []).filter(timestamp => now - timestamp < 60_000);
+    if (recent.length >= 60) { res.status(429).json({ error: 'Build job rate limit exceeded' }); return false; }
+    recent.push(now); jobRate.set(key, recent); return true;
+  }
   const allowedHosts = options.allowedHosts || parseAllowedHosts();
   const cloneRepository = options.cloneRepository || (async (url, dir, cloneOptions) => {
     const git = simpleGit({ timeout: { block: Number(process.env.CLONE_TIMEOUT_MS) || 120_000 } });
@@ -115,14 +123,16 @@ function createApp(options = {}) {
     return entry;
   }
 
-  app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
+  app.get(['/health', '/api/health'], (_req, res) => res.json({ status: 'ok' }));
   app.get('/api/runtime', (_req, res) => res.json({ localOnly }));
   app.get('/api/jobs', (req, res) => {
     if (!jobsEnabled) return res.status(404).json({ error: 'Build jobs are not enabled' });
+    if (!authorizeJob(req, res)) return;
     return res.json({ jobs: jobStore.list({ projectId: req.query.projectId, limit: req.query.limit }) });
   });
   app.post('/api/jobs', (req, res) => {
     if (!jobsEnabled) return res.status(404).json({ error: 'Build jobs are not enabled' });
+    if (!authorizeJob(req, res)) return;
     try {
       const job = jobStore.create(req.body || {});
       return res.status(201).json(job);
@@ -132,11 +142,13 @@ function createApp(options = {}) {
   });
   app.get('/api/jobs/:id', (req, res) => {
     if (!jobsEnabled) return res.status(404).json({ error: 'Build jobs are not enabled' });
+    if (!authorizeJob(req, res)) return;
     const job = jobStore.get(req.params.id);
     return job ? res.json(job) : res.status(404).json({ error: 'Job not found' });
   });
   app.post('/api/jobs/:id/cancel', (req, res) => {
     if (!jobsEnabled) return res.status(404).json({ error: 'Build jobs are not enabled' });
+    if (!authorizeJob(req, res)) return;
     try {
       const job = jobStore.update(req.params.id, 'cancelled');
       return job ? res.json(job) : res.status(404).json({ error: 'Job not found' });

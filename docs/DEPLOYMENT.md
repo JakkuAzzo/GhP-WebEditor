@@ -17,17 +17,24 @@ The root `railway.toml` provides the safe default start command and `/api/health
 check. Configure these variables in Railway; never commit values:
 
 - `NODE_ENV=production`
-- `GITHUB_APP_CLIENT_ID`
-- `GITHUB_APP_CLIENT_SECRET`
-- `GITHUB_APP_SLUG`
-- `GITHUB_APP_CALLBACK_URL` (HTTPS production callback)
+- `BUILDY_PUBLIC_MODE=true` only for an approved hosted deployment
+- `BUILDY_SESSION_SECRET`
+- `BUILDY_TOKEN_ENCRYPTION_KEY`
+- `BUILDY_GITHUB_CLIENT_ID`
+- `BUILDY_GITHUB_CLIENT_SECRET`
+- `BUILDY_GITHUB_APP_SLUG`
+- `BUILDY_GITHUB_CALLBACK_URL=https://buildy.bstudiob.co.uk/auth/github/callback`
+- `BUILDY_GITHUB_WEBHOOK_SECRET`
+- `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` (server-side only)
+- `BUILDY_STRIPE_WEBHOOK_SECRET` (server-side only)
 - `CLONE_ALLOWED_HOSTS` (normally the smallest required host set)
 - `CLONE_TIMEOUT_MS`
 
 `BUILDY_JOBS_ENABLED` must remain unset/false until the Postgres migration is applied,
 the web process is wired to `createPostgresJobStore`, and an isolated worker is
-deployed with `BUILDY_WORKER_MODULE`. The current `/api/jobs` implementation is for
-local/staging contract tests only and is not an authorization boundary.
+deployed with `BUILDY_WORKER_MODULE`. When enabled, `/api/jobs` requires a server-only
+`BUILDY_JOB_API_TOKEN` bearer token and applies an in-memory rate limit; production
+must replace this with authenticated account/entitlement checks and durable quotas.
 
 The hosted service must not be exposed until authentication, quotas, monitoring,
 and egress controls are enabled. The service is currently PR-first: it should
@@ -36,9 +43,11 @@ default branch.
 
 ## BStudioB migration checklist
 
-1. Create/select the BStudioB Railway workspace and production project.
+1. Create/select the BStudioB Railway workspace and private production repository/project.
 2. Install the Buildy GitHub App under the production GitHub owner.
-3. Grant only the intended repositories and verify the callback URL.
+3. Grant only the intended repositories and configure:
+   `https://buildy.bstudiob.co.uk/auth/github/callback` and
+   `https://buildy.bstudiob.co.uk/api/github/marketplace/webhook`.
 4. Add production secrets through Railway's encrypted variables UI.
 5. Connect the repository and select the intended production branch.
 6. Deploy with the health check enabled and verify `/api/runtime` and GitHub login.

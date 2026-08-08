@@ -2,6 +2,13 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createMemoryJobStore, transitionJob } = require('../lib/build-jobs');
 const { mapRow } = require('../lib/postgres-job-store');
+const { loadConfig } = require('../lib/config');
+
+test('production configuration prefers Buildy-owned variable names', () => {
+  const config = loadConfig({ NODE_ENV: 'production', BUILDY_GITHUB_CLIENT_ID: 'new', GITHUB_APP_CLIENT_ID: 'old', BUILDY_PUBLIC_MODE: 'true' });
+  assert.equal(config.publicMode, true);
+  assert.equal(config.github.clientId, 'new');
+});
 
 test('Postgres rows map to the public job shape', () => {
   const job = mapRow({ id: 'j1', project_id: 'demo', source: 'artifact', idempotency_key: 'k', status: 'queued', attempts: 0,
@@ -19,17 +26,22 @@ test('job store is idempotent and enforces terminal transitions', () => {
   const done = store.update(first.id, 'succeeded', { artifact: { path: 'dist.zip', size: 12 } });
   assert.equal(done.status, 'succeeded');
   assert.throws(() => transitionJob(done, 'running'), /Cannot transition/);
+  const retryable = store.create({ projectId: 'demo-retry', source: 'source' });
+  store.update(retryable.id, 'running'); store.update(retryable.id, 'failed', { error: 'worker' });
+  assert.equal(store.retry(retryable.id).status, 'queued');
 });
 
 test('jobs API can queue, inspect, and cancel when explicitly enabled', async t => {
   const { createApp } = require('../server');
-  const server = createApp({ jobsEnabled: true }).listen(0, '127.0.0.1');
+  const server = createApp({ jobsEnabled: true, jobApiToken: 'test-token' }).listen(0, '127.0.0.1');
   await new Promise(resolve => server.once('listening', resolve));
   t.after(() => new Promise(resolve => server.close(resolve)));
   const base = `http://127.0.0.1:${server.address().port}`;
-  const created = await fetch(`${base}/api/jobs`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ projectId: 'demo', source: 'artifact' }) });
+  const unauthorized = await fetch(`${base}/api/jobs`);
+  assert.equal(unauthorized.status, 401);
+  const created = await fetch(`${base}/api/jobs`, { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer test-token' }, body: JSON.stringify({ projectId: 'demo', source: 'artifact' }) });
   assert.equal(created.status, 201);
   const job = await created.json();
-  const cancelled = await fetch(`${base}/api/jobs/${job.id}/cancel`, { method: 'POST' });
+  const cancelled = await fetch(`${base}/api/jobs/${job.id}/cancel`, { method: 'POST', headers: { authorization: 'Bearer test-token' } });
   assert.equal((await cancelled.json()).status, 'cancelled');
 });
