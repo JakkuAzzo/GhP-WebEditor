@@ -32,6 +32,14 @@ test('health and clone request validation are deterministic', async t => {
   assert.equal(blocked.status, 400);
 });
 
+test('webhook ingress rejects missing configuration and invalid signatures', async t => {
+  const baseUrl = await withServer(t);
+  const github = await fetch(`${baseUrl}/api/github/marketplace/webhook`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
+  assert.equal(github.status, 503);
+  const stripe = await fetch(`${baseUrl}/api/stripe/webhook`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
+  assert.equal(stripe.status, 503);
+});
+
 test('clone file API saves, reads, reports, and deletes without following symlinks', async t => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ghp-api-clone-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));

@@ -31,6 +31,7 @@ const {
 const { registerGitHubRoutes } = require('./lib/github-app');
 const { createMemoryJobStore } = require('./lib/build-jobs');
 const { loadConfig } = require('./lib/config');
+const { verifyGitHubSignature, verifyStripeSignature } = require('./lib/webhook-signatures');
 
 const MAX_FILE_SIZE = 2 * 1024 * 1024;
 const DEFAULT_CLONES_DIR = path.join(os.tmpdir(), 'buildy-clones');
@@ -110,6 +111,21 @@ function createApp(options = {}) {
       }
     }
   }));
+  const webhookBody = express.raw({ type: 'application/json', limit: '1mb' });
+  app.post('/api/github/marketplace/webhook', webhookBody, (req, res) => {
+    if (!config.github.webhookSecret) return res.status(503).json({ error: 'GitHub webhook is not configured' });
+    const signature = req.headers['x-hub-signature-256'];
+    if (!verifyGitHubSignature(req.body, signature, config.github.webhookSecret)) return res.status(401).json({ error: 'Invalid webhook signature' });
+    let event; try { event = JSON.parse(req.body.toString('utf8')); } catch { return res.status(400).json({ error: 'Invalid webhook JSON' }); }
+    return res.status(202).json({ accepted: true, event: event.action || 'unknown' });
+  });
+  app.post('/api/stripe/webhook', webhookBody, (req, res) => {
+    if (!config.stripeWebhookSecret) return res.status(503).json({ error: 'Stripe webhook is not configured' });
+    const signature = req.headers['stripe-signature'];
+    if (!verifyStripeSignature(req.body, signature, config.stripeWebhookSecret)) return res.status(401).json({ error: 'Invalid webhook signature' });
+    let event; try { event = JSON.parse(req.body.toString('utf8')); } catch { return res.status(400).json({ error: 'Invalid webhook JSON' }); }
+    return res.status(202).json({ accepted: true, event: event.type || 'unknown' });
+  });
   app.use(express.json({ limit: `${MAX_FILE_SIZE}b` }));
   app.use('/lib/codemirror', bufferedStatic(path.join(__dirname, 'node_modules', 'codemirror')));
   app.use('/lib/marked', bufferedStatic(path.join(__dirname, 'node_modules', 'marked')));
